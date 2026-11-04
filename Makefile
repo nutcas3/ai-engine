@@ -29,8 +29,10 @@ build: tailwind-install templ-install
 	@./tailwindcss -i cmd/web/styles/input.css -o cmd/web/assets/css/output.css
 	@go build -o main cmd/api/main.go
 
-# Run the application
-run:
+# Run the application (regenerates templ code and CSS first)
+run: tailwind-install templ-install
+	@templ generate
+	@./tailwindcss -i cmd/web/styles/input.css -o cmd/web/assets/css/output.css
 	@go run cmd/api/main.go
 # Create DB container
 docker-run:
