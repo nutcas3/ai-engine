@@ -1,6 +1,6 @@
 package web
 
-templ Base(title string, brand Brand) {
+templ Base(title, section string, brand Brand) {
 	<!DOCTYPE html>
 	<html lang="en" class="h-full bg-canvas text-ink">
 		<head>
@@ -11,27 +11,54 @@ templ Base(title string, brand Brand) {
 			<script src="/assets/js/htmx.min.js"></script>
 			<script src="/assets/js/sse.js"></script>
 		</head>
-		<body class="h-full flex flex-col font-geist antialiased">
-			<header class="bg-paper border-b border-hairline">
-				<nav class="max-w-7xl mx-auto h-14 px-6 flex items-center justify-between">
-					<div class="flex items-center gap-2.5">
-						<div class="w-7 h-7 rounded-md bg-ink flex items-center justify-center text-paper text-xs font-semibold tracking-tight">
-							{ brand.Logo }
-						</div>
-						<span class="text-body font-semibold tracking-tight">{ brand.Name }</span>
-						<span class="text-caption font-geist-mono text-mid-gray ml-1 hidden sm:inline">{ brand.Tagline }</span>
+		<body class="h-full flex font-geist antialiased">
+			<aside class="w-56 shrink-0 bg-paper border-r border-hairline flex flex-col h-screen sticky top-0">
+				<div class="h-14 px-4 flex items-center gap-2.5 border-b border-hairline">
+					<div class="w-7 h-7 rounded-md bg-ink flex items-center justify-center text-paper text-xs font-semibold tracking-tight">
+						{ brand.Logo }
 					</div>
-					<div class="flex items-center gap-3">
-						<span class="flex items-center gap-1.5 text-caption font-geist-mono text-ink bg-surface-alt border border-hairline px-2.5 py-1 rounded-full">
-							<span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse"></span>
-							{ brand.Status }
-						</span>
+					<div class="min-w-0">
+						<div class="text-body font-semibold tracking-tight truncate">{ brand.Name }</div>
+						<div class="text-caption font-geist-mono text-mid-gray truncate">{ brand.Tagline }</div>
 					</div>
+				</div>
+				<nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+					@navLink("/", "Overview", "overview", section)
+					<div class="pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">FLEET</div>
+					@navLink("/clusters", "Clusters", "clusters", section)
+					@navLink("/nodepools", "Node Pools", "nodepools", section)
+					@navLink("/nodes", "Nodes", "nodes", section)
+					@navLink("/releases", "Releases", "releases", section)
+					<div class="pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">WORKLOADS</div>
+					@navLink("/inference", "Inference", "inference", section)
+					@navLink("/finops", "FinOps", "finops", section)
+					<div class="pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">SYSTEM</div>
+					@navLink("/providers", "Providers", "providers", section)
 				</nav>
-			</header>
-			<main class="flex-1 p-6 max-w-7xl mx-auto w-full">
-				{ children... }
-			</main>
+				<div class="p-3 border-t border-hairline">
+					<span class="flex items-center gap-1.5 text-caption font-geist-mono text-ink bg-surface-alt border border-hairline px-2.5 py-1 rounded-full w-fit">
+						<span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse"></span>
+						{ brand.Status }
+					</span>
+				</div>
+			</aside>
+			<div class="flex-1 min-w-0">
+				<main class="p-8 max-w-6xl mx-auto w-full">
+					{ children... }
+				</main>
+			</div>
 		</body>
 	</html>
+}
+
+templ navLink(href, label, key, current string) {
+	if key == current {
+		<a href={ templ.SafeURL(href) } class="flex items-center px-3 py-1.5 rounded-md text-body font-medium text-ink bg-surface-alt border border-hairline">
+			{ label }
+		</a>
+	} else {
+		<a href={ templ.SafeURL(href) } class="flex items-center px-3 py-1.5 rounded-md text-body text-mid-gray hover:text-ink hover:bg-surface-alt border border-transparent transition-colors">
+			{ label }
+		</a>
+	}
 }

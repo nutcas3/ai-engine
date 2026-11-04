@@ -20,8 +20,15 @@ import (
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 
-	// UI
+	// UI pages
 	mux.HandleFunc("GET /{$}", s.DashboardHandler)
+	mux.HandleFunc("GET /clusters", s.ClustersPageHandler)
+	mux.HandleFunc("GET /nodepools", s.NodePoolsPageHandler)
+	mux.HandleFunc("GET /nodes", s.NodesPageHandler)
+	mux.HandleFunc("GET /releases", s.ReleasesPageHandler)
+	mux.HandleFunc("GET /inference", s.InferencePageHandler)
+	mux.HandleFunc("GET /finops", s.FinOpsPageHandler)
+	mux.HandleFunc("GET /providers", s.ProvidersPageHandler)
 	mux.HandleFunc("GET /health", s.HealthHandler)
 	mux.HandleFunc("GET /api/telemetry/stream", s.TelemetryStreamHandler)
 	mux.HandleFunc("GET /api/clusters/provision", s.ProvisionModalHandler)
@@ -36,6 +43,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /api/nodes", s.ListNodesHandler)
 	mux.HandleFunc("POST /api/nodes/{id}/drain", s.DrainNodeHandler)
 	mux.HandleFunc("GET /api/releases", s.ListReleasesHandler)
+	mux.HandleFunc("POST /api/inference", s.CreateInferenceHandler)
 
 	// Force revalidation so regenerated CSS/JS isn't served stale from
 	// browser cache during development.
@@ -193,6 +201,106 @@ func (s *Server) DrainNodeHandler(w http.ResponseWriter, r *http.Request) {
 // ListReleasesHandler mirrors NVKE GET /releases — pinned node releases.
 func (s *Server) ListReleasesHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"releases": s.fleet.Releases()})
+}
+
+
+func (s *Server) ClustersPageHandler(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(web.ClustersPage(s.fleet.Clusters(), s.brand)).ServeHTTP(w, r)
+}
+
+func (s *Server) NodePoolsPageHandler(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(web.NodePoolsPage(s.fleet.NodePools(), s.brand)).ServeHTTP(w, r)
+}
+
+func (s *Server) NodesPageHandler(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(web.NodesPage(s.fleet.AllNodes(), s.brand)).ServeHTTP(w, r)
+}
+
+func (s *Server) ReleasesPageHandler(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(web.ReleasesPage(s.fleet.Releases(), s.brand)).ServeHTTP(w, r)
+}
+
+func (s *Server) InferencePageHandler(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(web.InferencePage(s.fleet.Endpoints(), s.fleet.NodePools(), s.brand)).ServeHTTP(w, r)
+}
+
+func (s *Server) ProvidersPageHandler(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(web.ProvidersPage(providers.List(), s.brand)).ServeHTTP(w, r)
+}
+
+// gpuHourlyRate estimates list price per GPU-hour by provider, used until
+// real billing telemetry lands.
+var gpuHourlyRate = map[string]float64{
+	"aws": 4.10, "gcp": 3.67, "azure": 3.40, "coreweave": 2.21,
+	"metal3": 0.0, "nico": 0.0, "mock": 0.0, "multi": 0.0,
+}
+
+func (s *Server) FinOpsPageHandler(w http.ResponseWriter, r *http.Request) {
+	var rows []web.FinRow
+	var total float64
+	for _, p := range s.fleet.NodePools() {
+		gpus := 0
+		var model string
+		for _, ns := range p.NodeSets {
+			for _, n := range ns.Nodes {
+				if n.GPU != nil {
+					gpus++
+					model = n.GPU.Model
+				}
+			}
+		}
+		rate := gpuHourlyRate[p.Provider.Kind]
+		cost := rate * float64(gpus) * 24
+		total += cost
+		rows = append(rows, web.FinRow{
+			Label: p.Name, Provider: p.Provider.Kind, GPUs: gpus,
+			Model: model, RateHr: rate, CostDay: cost,
+		})
+	}
+	templ.Handler(web.FinOpsPage(rows, total, s.brand)).ServeHTTP(w, r)
+}
+
+// CreateInferenceHandler registers a model endpoint on a pool. htmx gets the
+// new table row; JSON callers get the endpoint object.
+func (s *Server) CreateInferenceHandler(w http.ResponseWriter, r *http.Request) {
+	var e api.InferenceEndpoint
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+			http.Error(w, "invalid endpoint request", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+		e = api.InferenceEndpoint{
+			Name:   r.FormValue("name"),
+			Model:  r.FormValue("model"),
+			Engine: r.FormValue("engine"),
+			PoolID: r.FormValue("pool"),
+		}
+	}
+	if e.Name == "" || e.Model == "" {
+		http.Error(w, "name and model are required", http.StatusBadRequest)
+		return
+	}
+	if e.Engine == "" {
+		e.Engine = "vllm"
+	}
+	if e.Replicas < 1 {
+		e.Replicas = 1
+	}
+	e.ID = "ep-" + e.Name
+	e.Status = "Ready"
+	e.CreatedAt = time.Now()
+	s.fleet.AddEndpoint(e)
+
+	if isHTMX(r) {
+		templ.Handler(web.EndpointRow(e)).ServeHTTP(w, r)
+		return
+	}
+	writeJSON(w, http.StatusCreated, e)
 }
 
 func (s *Server) ProvisionModalHandler(w http.ResponseWriter, r *http.Request) {

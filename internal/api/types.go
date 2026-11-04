@@ -132,6 +132,19 @@ func (n Node) Status() string {
 	return "Unknown"
 }
 
+// InferenceEndpoint is a deployed model-serving endpoint — a vLLM/Triton or
+// KServe LLMInferenceService bound to a node pool.
+type InferenceEndpoint struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Model     string    `json:"model"`
+	Engine    string    `json:"engine"` // vllm | triton | kserve | kubeai
+	PoolID    string    `json:"poolID"`
+	Replicas  int       `json:"replicas"`
+	Status    string    `json:"status"` // Ready | Provisioning | Failed
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 // Release pins the software bundle for a node pool or control plane — NVKE
 // /releases (NodePoolRelease): Kubernetes version plus image/component pins.
 type Release struct {
