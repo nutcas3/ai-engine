@@ -1,0 +1,11 @@
+# optimal tier profile — GitOps layers synced onto clusters of this tier.
+# Source of truth for component versions: github.com/nutcas3/ai-for-k8s
+tier: optimal
+layers:
+  - p0-platform
+  - p1-gpu(operator+dra+nvsentinel+mig)
+  - p2-storage(rook-ceph+rgw)
+  - p3-inference(gie+kserve+vllm+litellm)
+  - p4-training(kueue-tas+jobset)
+  - p5-data(qdrant+argo-wf+cnpg)
+  - p6-notebooks

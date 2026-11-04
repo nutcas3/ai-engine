@@ -1,0 +1,11 @@
+# minimal tier profile — GitOps layers synced onto clusters of this tier.
+# Source of truth for component versions: github.com/nutcas3/ai-for-k8s
+tier: minimal
+layers:
+  - p0-platform
+  - p1-gpu(device-plugin+time-slicing)
+  - p2-storage(local-path+seaweedfs)
+  - p3-inference(kubeai)
+  - p4-training(trainer-v2)
+  - p5-data(qdrant)
+  - p6-notebooks
