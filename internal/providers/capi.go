@@ -11,6 +11,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -106,18 +107,20 @@ func (c *CAPI) ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpe
 	}
 
 	kubeadm := kubeadmConfigTemplate(spec, ns, k8s)
-	if err := c.applyUnstructured(ctx, "bootstrap.cluster.x-k8s.io", "kubeadmconfigtemplates", kubeadm); err != nil {
+	bootVer, err := c.applyUnstructured(ctx, "bootstrap.cluster.x-k8s.io", "kubeadmconfigtemplates", kubeadm)
+	if err != nil {
 		return nil, fmt.Errorf("apply kubeadmconfigtemplate: %w", err)
 	}
 	infra, err := c.infraTemplate(spec, ns)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyUnstructured(ctx, "infrastructure.cluster.x-k8s.io", infraResourceName(c.key, cfg), infra); err != nil {
+	infraVer, err := c.applyUnstructured(ctx, "infrastructure.cluster.x-k8s.io", infraResourceName(c.key, cfg), infra)
+	if err != nil {
 		return nil, fmt.Errorf("apply infra template: %w", err)
 	}
-	md := machineDeployment(spec, ns, clusterName, count, k8s, c.templateKind(cfg))
-	if err := c.applyUnstructured(ctx, "cluster.x-k8s.io", "machinedeployments", md); err != nil {
+	md := machineDeployment(spec, ns, clusterName, count, k8s, c.templateKind(cfg), bootVer, infraVer)
+	if _, err := c.applyUnstructured(ctx, "cluster.x-k8s.io", "machinedeployments", md); err != nil {
 		return nil, fmt.Errorf("apply machinedeployment: %w", err)
 	}
 
@@ -142,6 +145,107 @@ func (c *CAPI) ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpe
 		}},
 	}
 	return &ProvisionResult{Pool: pool}, nil
+}
+
+// ProvisionCluster applies the day-0 CAPI objects for a whole cluster:
+// <Kind>Cluster, a control-plane <Kind>MachineTemplate, KubeadmControlPlane,
+// and the Cluster object wiring them. Optional initial node pools are
+// applied afterwards via ProvisionNodePool with clusterName injected.
+func (c *CAPI) ProvisionCluster(ctx context.Context, req api.CreateClusterRequest) (*api.Cluster, error) {
+	if !c.Ready() {
+		return nil, ErrNotConfigured
+	}
+	cfg := req.Provider.Config
+	ns := cfg["namespace"]
+	if ns == "" {
+		ns = c.ns
+	}
+	k8s := req.ControlPlaneKubernetesVersion
+	if k8s == "" {
+		k8s = "1.33.4"
+	}
+	tier := req.Tier
+	if tier == "" {
+		tier = "optimal"
+	}
+	cpCount := int64(1)
+	if v := cfg["controlPlaneCount"]; v != "" {
+		var n int64
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cpCount = n
+		}
+	}
+
+	// 1. Infrastructure cluster (AWSCluster, GCPCluster, Metal3Cluster, …).
+	ic := c.infraCluster(req.Name, ns, cfg)
+	infraVer, err := c.applyUnstructured(ctx, "infrastructure.cluster.x-k8s.io", infraClusterResourceName(c.key, cfg), ic)
+	if err != nil {
+		return nil, fmt.Errorf("apply infra cluster: %w", err)
+	}
+	// 2. Control-plane machine template.
+	spec := api.NodePoolCreateSpec{
+		Name: req.Name + "-cp", NodeNamePrefix: "cp",
+		DesiredNodeCount: int(cpCount), KubernetesVersion: k8s,
+		Provider: req.Provider,
+	}
+	cpMT, err := c.infraTemplate(spec, ns)
+	if err != nil {
+		return nil, err
+	}
+	cpMTVer, err := c.applyUnstructured(ctx, "infrastructure.cluster.x-k8s.io", infraResourceName(c.key, cfg), cpMT)
+	if err != nil {
+		return nil, fmt.Errorf("apply cp machine template: %w", err)
+	}
+	// 3. KubeadmControlPlane.
+	kcp := kubeadmControlPlane(req.Name, ns, k8s, cpCount, c.templateKind(cfg), cpMTVer)
+	kcpVer, err := c.applyUnstructured(ctx, "controlplane.cluster.x-k8s.io", "kubeadmcontrolplanes", kcp)
+	if err != nil {
+		return nil, fmt.Errorf("apply kubeadmcontrolplane: %w", err)
+	}
+	// 4. Cluster object wiring both refs.
+	cl := clusterObj(req.Name, ns, k8s, tier, c.infraClusterKind(cfg), kcpVer, infraVer)
+	if _, err := c.applyUnstructured(ctx, "cluster.x-k8s.io", "clusters", cl); err != nil {
+		return nil, fmt.Errorf("apply cluster: %w", err)
+	}
+
+	// 5. Optional initial worker pools — same flow as POST /api/nodePools.
+	poolNames := make([]string, 0, len(req.NodePools))
+	for _, p := range req.NodePools {
+		p.Provider = req.Provider
+		if p.Provider.Config == nil {
+			p.Provider.Config = map[string]string{}
+		}
+		p.Provider.Config["clusterName"] = req.Name
+		if _, err := c.ProvisionNodePool(ctx, p); err != nil {
+			return nil, fmt.Errorf("provision pool %q: %w", p.Name, err)
+		}
+		poolNames = append(poolNames, p.Name)
+	}
+
+	now := time.Now()
+	return &api.Cluster{
+		ID: "cluster-" + req.Name, Name: req.Name, Tier: tier,
+		ControlPlaneKubernetesVersion: k8s, CNIPlugin: cfg["cniPlugin"],
+		EtcdEncrypted: req.EtcdEncrypted,
+		Network: api.ClusterNetwork{
+			PodCIDR:     orDefault(cfg["podCIDR"], "192.168.0.0/16"),
+			ServiceCIDR: orDefault(cfg["serviceCIDR"], "10.96.0.0/12"),
+		},
+		Provider:  req.Provider,
+		CreatedAt: now,
+		Conditions: []api.Condition{{
+			Type: "Provisioning", Status: "True", Reason: "ClusterObjectsApplied",
+			Message: "CAPI is reconciling the cluster (pools: " + fmt.Sprintf("%v", poolNames) + ")",
+			LastTransitionTime: now,
+		}},
+	}, nil
+}
+
+func orDefault(v, d string) string {
+	if v != "" {
+		return v
+	}
+	return d
 }
 
 // DrainNode deletes the Machine backing the node — the CAPI machine
@@ -186,7 +290,8 @@ func (c *CAPI) deleteMachineByName(ctx context.Context, version, nodeID string) 
 		return false, err
 	}
 	for _, m := range list.Items {
-		if m.GetName() == nodeID {
+		nodeRefName, _, _ := unstructured.NestedString(m.Object, "status", "nodeRef", "name")
+		if m.GetName() == nodeID || nodeRefName == nodeID || m.GetLabels()["node"] == nodeID {
 			if err := c.dyn.Resource(gvr("cluster.x-k8s.io", "machines", version)).Namespace(c.ns).
 				Delete(ctx, m.GetName(), metav1.DeleteOptions{}); err != nil {
 				return false, err
@@ -199,8 +304,9 @@ func (c *CAPI) deleteMachineByName(ctx context.Context, version, nodeID string) 
 
 // applyUnstructured upserts obj against the resource across CAPI API
 // versions: update where the object already exists, otherwise create under
-// the first version the API server accepts.
-func (c *CAPI) applyUnstructured(ctx context.Context, group, resource string, obj *unstructuredObj) error {
+// the first version the API server accepts. It returns the version applied
+// so callers can write the same apiVersion into cross-object refs.
+func (c *CAPI) applyUnstructured(ctx context.Context, group, resource string, obj *unstructuredObj) (string, error) {
 	name, ns := obj.obj.GetName(), obj.obj.GetNamespace()
 	var lastErr error
 	for _, v := range capiVersions {
@@ -212,18 +318,18 @@ func (c *CAPI) applyUnstructured(ctx context.Context, group, resource string, ob
 			u.SetAPIVersion(group + "/" + v)
 			u.SetResourceVersion(existing.GetResourceVersion())
 			if _, err = ri.Update(ctx, u, metav1.UpdateOptions{}); err == nil {
-				return nil
+				return v, nil
 			}
 		case errors.IsNotFound(err):
 			u := obj.obj.DeepCopy()
 			u.SetAPIVersion(group + "/" + v)
 			if _, err = ri.Create(ctx, u, metav1.CreateOptions{}); err == nil {
-				return nil
+				return v, nil
 			}
 		}
 		if err != nil {
 			lastErr = err
 		}
 	}
-	return lastErr
+	return "", lastErr
 }

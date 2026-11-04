@@ -109,6 +109,22 @@ func (s *Server) CreateClusterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
+	// Real path: the provider adapter applies Cluster/<Kind>Cluster/
+	// KubeadmControlPlane/pools on the management cluster, then fleet
+	// registers the record it returns. Falls back to in-memory registration
+	// when the provider isn't configured (mirrors pool provisioning).
+	if p, err := providers.Get(req.Provider.Kind); err == nil && p.Ready() {
+		if cp, ok := p.(providers.ClusterProvisioner); ok {
+			cluster, err := cp.ProvisionCluster(r.Context(), req)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			s.fleet.RegisterCluster(*cluster)
+			writeJSON(w, http.StatusCreated, *cluster)
+			return
+		}
+	}
 	c := s.fleet.CreateCluster(req)
 	writeJSON(w, http.StatusCreated, c)
 }

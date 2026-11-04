@@ -218,6 +218,14 @@ func (m *Manager) AddNodePool(clusterID string, p api.NodePool) {
 	}
 }
 
+// RegisterCluster appends a cluster built by a provider adapter (e.g. CAPI
+// ProvisionCluster) so it appears alongside seeded/requested clusters.
+func (m *Manager) RegisterCluster(c api.Cluster) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.clusters = append(m.clusters, c)
+}
+
 // CreateCluster registers a new cluster from a create request.
 func (m *Manager) CreateCluster(req api.CreateClusterRequest) api.Cluster {
 	m.mu.Lock()
