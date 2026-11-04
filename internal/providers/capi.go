@@ -106,7 +106,7 @@ func (c *CAPI) ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpe
 		k8s = "1.33.4"
 	}
 
-	kubeadm := kubeadmConfigTemplate(spec, ns, k8s)
+	kubeadm := kubeadmConfigTemplate(spec, ns)
 	bootVer, err := c.applyUnstructured(ctx, "bootstrap.cluster.x-k8s.io", "kubeadmconfigtemplates", kubeadm)
 	if err != nil {
 		return nil, fmt.Errorf("apply kubeadmconfigtemplate: %w", err)
@@ -203,7 +203,7 @@ func (c *CAPI) ProvisionCluster(ctx context.Context, req api.CreateClusterReques
 		return nil, fmt.Errorf("apply kubeadmcontrolplane: %w", err)
 	}
 	// 4. Cluster object wiring both refs.
-	cl := clusterObj(req.Name, ns, k8s, tier, c.infraClusterKind(cfg), kcpVer, infraVer)
+	cl := clusterObj(req.Name, ns, tier, c.infraClusterKind(cfg), kcpVer, infraVer)
 	if _, err := c.applyUnstructured(ctx, "cluster.x-k8s.io", "clusters", cl); err != nil {
 		return nil, fmt.Errorf("apply cluster: %w", err)
 	}
