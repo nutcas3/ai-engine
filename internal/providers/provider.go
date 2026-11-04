@@ -4,21 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"ai-engine/internal/api"
 )
 
-// NodePoolSpec describes a GPU node pool the control plane should provision.
-// Provider-specific details (instance type, VPC, image) are carried in Labels
-// until real CAPI templates are wired in.
-type NodePoolSpec struct {
-	Name     string
-	Provider string // registry key: aws, gcp, azure, coreweave, metal3, nico
-	GPUModel string
-	Count    int
-	Labels   map[string]string
+// ProvisionResult is what an adapter returns after creating a node pool: the
+// pool resource (with its node set and nodes) to register in fleet state.
+type ProvisionResult struct {
+	Pool api.NodePool
 }
 
 // Provider is the seam between the control plane and an infrastructure
-// adapter (Cluster API provider, bare-metal controller, or cloud API).
+// adapter (Cluster API provider, bare-metal controller, or cloud API). It
+// mirrors NVKE's model where each pool/set carries exactly one provider
+// payload, fixed at creation.
 type Provider interface {
 	// Key is the registry identifier (e.g. "aws", "metal3").
 	Key() string
@@ -26,10 +25,10 @@ type Provider interface {
 	Display() string
 	// Ready reports whether the adapter is configured for real provisioning.
 	Ready() bool
-	// Provision asks the adapter to create a node pool from spec.
-	Provision(ctx context.Context, spec NodePoolSpec) error
-	// Drain cordons and drains a node, triggering replacement.
-	Drain(ctx context.Context, nodeID string) error
+	// ProvisionNodePool asks the adapter to create a pool from spec.
+	ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpec) (*ProvisionResult, error)
+	// DrainNode cordons and drains a node, triggering replacement.
+	DrainNode(ctx context.Context, nodeID string) error
 }
 
 // ErrNotConfigured marks adapters that exist as placeholders but have no

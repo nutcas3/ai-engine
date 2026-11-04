@@ -1,11 +1,11 @@
 package web
 
 import (
-	"ai-engine/internal/fleet"
+	"ai-engine/internal/api"
 	"ai-engine/internal/providers"
 )
 
-templ Dashboard(nodes []fleet.GPUNode) {
+templ Dashboard(nodes []api.Node) {
 	@Base("Telemetry Dashboard") {
 		<div class="space-y-8">
 			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -42,7 +42,7 @@ templ ProvisionModal(providers []providers.Provider) {
 				<h2 class="text-lg font-semibold text-white">Provision Node Pool</h2>
 				<button hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
 			</div>
-			<form hx-post="/api/clusters" hx-target="#fleet-grid" hx-swap="beforeend" class="space-y-4">
+			<form hx-post="/api/nodePools" hx-target="#fleet-grid" hx-swap="beforeend" class="space-y-4">
 				<div>
 					<label class="block text-xs font-medium text-slate-400 mb-1.5">Infrastructure Provider</label>
 					<select name="provider" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
