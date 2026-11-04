@@ -33,9 +33,12 @@ type ClusterNetwork struct {
 }
 
 // Cluster is a managed Kubernetes cluster — NVKE's top-level resource.
+// Tier selects the deploy/clusters/<tier> GitOps profile (nano, minimal,
+// optimal, max) that decides which platform layers sync onto the cluster.
 type Cluster struct {
 	ID                            string          `json:"id"`
 	Name                          string          `json:"name"`
+	Tier                          string          `json:"tier"`
 	ControlPlaneKubernetesVersion string          `json:"controlPlaneKubernetesVersion"`
 	CNIPlugin                     string          `json:"cniPlugin"`
 	EtcdEncrypted                 bool            `json:"etcdEncrypted"`
@@ -49,6 +52,7 @@ type Cluster struct {
 // CreateClusterRequest mirrors NVKE CreateClusterRequest.
 type CreateClusterRequest struct {
 	Name                          string               `json:"name"`
+	Tier                          string               `json:"tier,omitempty"` // nano|minimal|optimal|max; default optimal
 	ControlPlaneKubernetesVersion string               `json:"controlPlaneKubernetesVersion"`
 	EtcdEncrypted                 bool                 `json:"etcdEncrypted"`
 	Provider                      InfraProvider        `json:"provider"`

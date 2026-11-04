@@ -1,0 +1,11 @@
+# max tier profile — GitOps layers synced onto clusters of this tier.
+# Source of truth for component versions: github.com/nutcas3/ai-for-k8s
+tier: max
+layers:
+  - optimal
+  - +
+  - fabric(multus+sriov+rdma)
+  - +
+  - milvus
+  - +
+  - computedomain

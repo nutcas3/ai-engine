@@ -54,7 +54,7 @@ func NewManager() *Manager {
 
 	return &Manager{
 		clusters: []api.Cluster{{
-			ID: "cluster-gpu-fleet", Name: "gpu-fleet",
+			ID: "cluster-gpu-fleet", Name: "gpu-fleet", Tier: "optimal",
 			ControlPlaneKubernetesVersion: "1.33.4",
 			CNIPlugin:                     "cilium",
 			EtcdEncrypted:                 true,
@@ -190,9 +190,14 @@ func (m *Manager) AddNodePool(clusterID string, p api.NodePool) {
 func (m *Manager) CreateCluster(req api.CreateClusterRequest) api.Cluster {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	tier := req.Tier
+	if tier == "" {
+		tier = "optimal"
+	}
 	c := api.Cluster{
 		ID:                            "cluster-" + req.Name,
 		Name:                          req.Name,
+		Tier:                          tier,
 		ControlPlaneKubernetesVersion: req.ControlPlaneKubernetesVersion,
 		CNIPlugin:                     "cilium",
 		EtcdEncrypted:                 req.EtcdEncrypted,

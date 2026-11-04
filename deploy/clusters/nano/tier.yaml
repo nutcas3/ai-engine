@@ -1,0 +1,10 @@
+# nano tier profile — GitOps layers synced onto clusters of this tier.
+# Source of truth for component versions: github.com/nutcas3/ai-for-k8s
+tier: nano
+layers:
+  - p0-platform
+  - p1-gpu(device-plugin)
+  - p2-storage(local-path+seaweedfs)
+  - p3-inference(kubeai)
+  - p5-data(qdrant)
+  - p6-notebooks(cpu)

@@ -37,7 +37,24 @@ Release ── pinned component bundle (k8s ver, osImage, driver, toolkit, DCGM)
 `CreateClusterRequest`, `NodePool`, `NodePoolCreateSpec`, `NodeSet`, `Node`,
 `Condition`, `InfraProvider` (generalizes `nico|launchLayer|infra`),
 `Release` (NodePoolRelease). `Node.Status()` collapses conditions into the
-UI's Ready/Degraded/Draining label.
+UI's Ready/Degraded/Draining label. `Cluster.Tier` selects the GitOps
+profile (`nano`/`minimal`/`optimal`/`max`, from `ai-for-k8s`) that decides
+which `deploy/p*` layers sync onto the cluster.
+
+## GitOps integration (ai-for-k8s)
+
+`github.com/nutcas3/ai-for-k8s` is the content source: Talos + ArgoCD
+app-of-apps layers (P0 platform → P6 notebooks) with per-tier profiles.
+The engine's job is day-0 (CAPI provisioning + ArgoCD bootstrap pointing at
+that repo); layers then reconcile themselves. Notable adoptions:
+
+- **NVSentinel** owns Xid remediation on `optimal`+ tiers — the production
+  version of `telemetry.Classify` (P1 `gpu`)
+- **KServe `LLMInferenceService`** as the serving CRD, GIE/EPP for
+  model-aware routing, LiteLLM for keys/budgets (P3)
+- **Kubeflow Trainer v2 + JobSet + Kueue TAS** for fine-tuning (P4)
+- **Tier profiles** map to `deploy/clusters/<tier>/tier.yaml` and
+  `Cluster.Tier`
 
 ## REST surface (NVKE-shaped)
 
@@ -65,7 +82,7 @@ Not yet mirrored: `/nodeSets`, `/control-plane`, `/configProfiles`,
 | `internal/fleet` | In-memory `Manager` of the cluster→pool→set→node hierarchy |
 | `internal/providers` | `Provider` interface + registry; `Mock` (local dev), `CAPI` stubs |
 | `internal/telemetry` | SSE `Broadcaster`; DCGM Xid→action classification table, scraper stub |
-| `deploy/` | Per-layer install manifests (CAPI, GPU Operator, Kueue, Cilium, Gateway API inference, Fluid) |
+| `deploy/` | GitOps layer manifests in sync-wave order (`clusterapi` day-0, `p0-platform`…`p6-notebooks`, `clusters/<tier>` profiles), mirroring `nutcas3/ai-for-k8s` |
 
 ## NVKE patterns to adopt in later milestones
 
