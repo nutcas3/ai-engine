@@ -6,10 +6,12 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+ARG TARGETARCH
 COPY . .
 RUN go install github.com/a-h/templ/cmd/templ@latest && \
     templ generate && \
-    curl -sL https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64-musl -o tailwindcss && \
+    arch=$${TARGETARCH:-amd64}; [ "$$arch" = "amd64" ] && arch=x64; \
+    curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-$$arch-musl" -o tailwindcss && \
     chmod +x tailwindcss && \
     ./tailwindcss -i cmd/web/styles/input.css -o cmd/web/assets/css/output.css
 

@@ -1,0 +1,48 @@
+# Fluid + Alluxio — model weight caching.
+# Pulls checkpoints from any S3-compatible store to node-local NVMe so vLLM
+# cold starts in minutes instead of tens of minutes. Colocate the cache with
+# the serving pod for best results (single-node 100% cache ≈ 3 min for 70B).
+#
+# Install: helm install fluid fluid/fluid -n fluid-system
+apiVersion: data.fluid.io/v1alpha1
+kind: Dataset
+metadata:
+  name: llama-3-70b-weights
+  namespace: team-inference
+spec:
+  mounts:
+    - mountPoint: s3://model-registry/llama-3-70b/
+      options:
+        alluxio.underfs.s3.endpoint: http://minio.storage:9000
+        alluxio.underfs.s3.disable.dns.buckets: "true"
+  # Credentials via secret refs:
+  #   accessKeyId/secretKeyId secret/secretKey entries
+---
+apiVersion: data.fluid.io/v1alpha1
+kind: AlluxioRuntime
+metadata:
+  name: llama-3-70b-weights
+  namespace: team-inference
+spec:
+  replicas: 1
+  tieredstore:
+    levels:
+      - mediumtype: SSD
+        path: /mnt/nvme/fluid-cache
+        quota: 200Gi
+        high: "0.95"
+        low: "0.8"
+---
+apiVersion: data.fluid.io/v1alpha1
+kind: DataLoad
+metadata:
+  name: llama-3-70b-weights-warm
+  namespace: team-inference
+spec:
+  dataset:
+    name: llama-3-70b-weights
+    namespace: team-inference
+  loadMetadata: true
+  target:
+    - path: "/"
+      replicas: 1

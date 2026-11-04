@@ -1,0 +1,84 @@
+package web
+
+import (
+	"ai-engine/internal/fleet"
+	"ai-engine/internal/providers"
+)
+
+templ Dashboard(nodes []fleet.GPUNode) {
+	@Base("Telemetry Dashboard") {
+		<div class="space-y-8">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+				<div>
+					<h1 class="text-2xl font-bold tracking-tight text-white">GPU Fleet Telemetry</h1>
+					<p class="text-sm text-slate-400 mt-1">Multi-cloud hardware health, VRAM utilization, and automated node remediation.</p>
+				</div>
+				<button
+					hx-get="/api/clusters/provision"
+					hx-target="#modal-container"
+					class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
+				>
+					<span>+</span> Provision Node Pool
+				</button>
+			</div>
+			<div hx-ext="sse" sse-connect="/api/telemetry/stream" sse-swap="gpu-metrics">
+				<div id="fleet-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					for _, node := range nodes {
+						@GPUCard(node)
+					}
+				</div>
+			</div>
+			<div id="modal-container"></div>
+		</div>
+	}
+}
+
+// ProvisionModal lets an operator pick an infrastructure adapter and node pool
+// shape. Only providers reporting Ready can actually provision today.
+templ ProvisionModal(providers []providers.Provider) {
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+		<div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+			<div class="flex items-center justify-between mb-5">
+				<h2 class="text-lg font-semibold text-white">Provision Node Pool</h2>
+				<button hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+			</div>
+			<form hx-post="/api/clusters" hx-target="#fleet-grid" hx-swap="beforeend" class="space-y-4">
+				<div>
+					<label class="block text-xs font-medium text-slate-400 mb-1.5">Infrastructure Provider</label>
+					<select name="provider" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+						for _, p := range providers {
+							if p.Ready() {
+								<option value={ p.Key() }>{ p.Display() }</option>
+							} else {
+								<option value={ p.Key() } disabled>{ p.Display() } — not configured</option>
+							}
+						}
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-slate-400 mb-1.5">Pool Name</label>
+					<input name="name" type="text" required placeholder="e.g. h100-inference-pool" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+				</div>
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label class="block text-xs font-medium text-slate-400 mb-1.5">GPU Model</label>
+						<select name="gpu_model" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+							<option>NVIDIA H100 80GB</option>
+							<option>NVIDIA A100 80GB</option>
+							<option>NVIDIA L40S 48GB</option>
+							<option>NVIDIA B200 180GB</option>
+						</select>
+					</div>
+					<div>
+						<label class="block text-xs font-medium text-slate-400 mb-1.5">Node Count</label>
+						<input name="count" type="number" min="1" max="8" value="1" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+					</div>
+				</div>
+				<div class="pt-2 flex justify-end gap-3">
+					<button type="button" hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">Cancel</button>
+					<button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors">Provision via CAPI</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}

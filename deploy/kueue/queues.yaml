@@ -1,0 +1,48 @@
+# Kueue — team GPU quotas and job admission. Kueue sits above kube-scheduler:
+# jobs are held until quota + capacity exist, then admitted. MultiKueue
+# dispatches across clusters/clouds from one control plane.
+#
+# Install: kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/latest/download/manifests.yaml
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: h100
+spec:
+  nodeLabels:
+    gpu.nvidia.com/model: h100
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: a100-spot
+spec:
+  nodeLabels:
+    gpu.nvidia.com/model: a100
+    cloud.provider.com/lifecycle: spot
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: shared-gpu-pool
+spec:
+  resourceGroups:
+    - coveredResources: ["nvidia.com/gpu", "cpu", "memory"]
+      flavors:
+        - name: h100
+          resources:
+            - name: "nvidia.com/gpu"
+              nominalQuota: 16
+        - name: a100-spot
+          resources:
+            - name: "nvidia.com/gpu"
+              nominalQuota: 32
+  # Teams borrow idle capacity from each other (dynamic capacity sharing).
+  cohort: gpu-fleet
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  namespace: team-inference
+  name: inference-queue
+spec:
+  clusterQueue: shared-gpu-pool

@@ -17,8 +17,10 @@ templ-install:
 		fi; \
 	fi
 tailwind-install:
-	
-	@if [ ! -f tailwindcss ]; then curl -sL https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-macos-x64 -o tailwindcss; fi
+	@if [ ! -f tailwindcss ]; then \
+		arch=$$(uname -m); [ "$$arch" = "x86_64" ] && arch=x64; \
+		curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-macos-$$arch" -o tailwindcss; \
+	fi
 	@chmod +x tailwindcss
 
 build: tailwind-install templ-install
