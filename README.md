@@ -4,7 +4,7 @@ Cloud-agnostic AI engine control plane — a single Go binary serving a
 templ + htmx dashboard for GPU fleet telemetry, node remediation, and
 multi-cloud node-pool provisioning. Modeled on NVIDIA NVKE.
 
-See [plan.md](plan.md) for the full architecture and [docs/architecture.md](docs/architecture.md) for the package map.
+See[docs/architecture.md](docs/architecture.md) for the package map.
 
 ## Stack
 
