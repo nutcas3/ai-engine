@@ -96,38 +96,47 @@ Confirmed real-world pattern (EKS node monitoring agent, NVKE auto-mode, gpu-nod
 3. **Hardware faults & remediation** — DCGM/Xid feed, drain/replace triggers
 4. **FinOps** — cost per token by model/team/provider, spot arbitrage hints
 
-## Planned Repository Layout
+## Repository Layout (implemented — go-blueprint scaffold)
+
+The scaffold was generated with `go-blueprint` (stdlib backend, htmx,
+tailwind, docker, githubaction) then aligned to NVKE's domain model:
 
 ```
 ai-engine/
 ├── plan.md                        # this file
-├── README.md
-├── go.mod                         # module ai-engine, dep: github.com/a-h/templ
-├── Makefile                       # dev / build / generate / clean
-├── cmd/server/main.go             # entry point, mux wiring
+├── README.md, docs/architecture.md
+├── go.mod, Makefile, Dockerfile, docker-compose.yml, .air.toml
+├── cmd/
+│   ├── api/main.go                # entry point, graceful shutdown
+│   └── web/                       # templ views + embedded assets
+│       ├── base.templ             # dark shell, htmx + sse ext
+│       ├── dashboard.templ        # fleet grid + provision modal
+│       ├── gpu_card.templ         # GPUCard / GPUCardOOB / GPUCardAppend
+│       └── assets/                # htmx.min.js, sse.js, output.css (TW v4)
 ├── internal/
-│   ├── fleet/manager.go           # thread-safe node state, metrics, drain
-│   ├── providers/
-│   │   ├── provider.go            # Provider interface + registry
-│   │   ├── mock.go                # local-dev provider simulating CAPI lifecycle
-│   │   └── capi.go                # CAPI adapter stub (dynamic client — creds TODO)
+│   ├── api/types.go               # NVKE model: Cluster→NodePool→NodeSet→Node,
+│   │                              #   Condition, InfraProvider oneof, Release
+│   ├── fleet/manager.go           # in-memory hierarchy + telemetry mutation
+│   ├── providers/                 # Provider iface + registry
+│   │   ├── mock.go                # builds full pool→set→nodes locally
+│   │   └── capi.go                # CAPA/CAPG/CAPZ/Metal3/NICo stubs
 │   ├── telemetry/
-│   │   ├── broadcaster.go         # SSE fan-out, newline-safe framing
-│   │   └── dcgm.go                # DCGM scrape stub + Xid classification table
-│   └── api/handlers.go            # dashboard, drain, provision modal, telemetry stream
-├── views/
-│   ├── layout.templ               # htmx 4 + hx-sse + Tailwind
-│   ├── dashboard.templ            # fleet grid + provision modal anchor
-│   └── components/gpu_card.templ  # status badge, VRAM bar, drain button
-├── deploy/
-│   ├── clusterapi/                # clusterctl init notes per provider
-│   ├── gpu-operator/values.yaml   # GPU Operator + DCGM exporter Helm values
-│   ├── kueue/                     # ClusterQueue/LocalQueue/ResourceFlavor stubs
-│   ├── cilium/                    # uniform CNI notes
-│   ├── gateway-api/               # InferencePool/InferenceModel pointers
-│   └── fluid/dataset.yaml         # Dataset + AlluxioRuntime stub
-└── docs/architecture.md
+│   │   ├── broadcaster.go         # SSE fan-out
+│   │   └── dcgm.go                # Xid→action table, scraper stub
+│   └── server/                    # routes: NVKE REST + htmx + SSE stream
+└── deploy/
+    ├── clusterapi/  gpu-operator/  kueue/  cilium/  gateway-api/  fluid/
 ```
+
+**NVKE-aligned REST surface:** `GET/POST /api/clusters`,
+`GET/POST /api/nodePools`, `GET /api/nodes`, `POST /api/nodes/{id}/drain`,
+`GET /api/releases`. htmx requests (`HX-Request` header) get HTML fragments;
+plain API calls get JSON — content negotiation on the same routes.
+
+**NVKE patterns deferred to later milestones:** Postgres + outbox pattern
+(handlers never call the orchestrator directly), Temporal workflows, SPIFFE/
+SPIRE node identity with TPM attestation, NodePoolRelease rollouts, OIDC
+authn + tenant authz, openapi.yaml-as-source-of-truth with codegen.
 
 ## Implementation Roadmap
 

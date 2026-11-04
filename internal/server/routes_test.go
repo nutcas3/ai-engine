@@ -40,7 +40,7 @@ func TestHealthHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error reading response body. Err: %v", err)
 	}
-	if expected := `{"status":"ok"}`; expected != string(body) {
+	if expected := `{"status":"ok"}`; expected != strings.TrimSpace(string(body)) {
 		t.Errorf("expected response body to be %v; got %v", expected, string(body))
 	}
 }
@@ -66,7 +66,7 @@ func TestDrainNodeHandler(t *testing.T) {
 		t.Errorf("expected card to show Draining status")
 	}
 
-	resp, err = http.Post(server.URL+"/api/nodes/nope/drain", "", nil)
+	resp, err = http.Post(server.URL+"/api/nodes/nope/drain", "application/json", nil)
 	if err != nil {
 		t.Fatalf("drain request failed: %v", err)
 	}
