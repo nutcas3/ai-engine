@@ -61,10 +61,13 @@ func List() []Provider {
 }
 
 func init() {
-	Register(&CAPI{key: "aws", display: "AWS — CAPA (EKS/EC2)"})
-	Register(&CAPI{key: "gcp", display: "GCP — CAPG (GKE/GCE)"})
-	Register(&CAPI{key: "azure", display: "Azure — CAPZ (AKS/VMs)"})
-	Register(&CAPI{key: "coreweave", display: "CoreWeave / Lambda (custom CAPI)"})
-	Register(&CAPI{key: "metal3", display: "Bare Metal — Metal3 (CAPM3)"})
-	Register(&CAPI{key: "nico", display: "Bare Metal — NICo (BlueField DPU sites)"})
+	// One shared management-cluster client for every CAPI adapter. When no
+	// kubeconfig resolves, dyn stays nil and adapters report Ready()=false.
+	dyn, ns, _ := capiClientFromEnv()
+	Register(NewCAPI("aws", "AWS — CAPA (EKS/EC2)", dyn, ns))
+	Register(NewCAPI("gcp", "GCP — CAPG (GKE/GCE)", dyn, ns))
+	Register(NewCAPI("azure", "Azure — CAPZ (AKS/VMs)", dyn, ns))
+	Register(NewCAPI("coreweave", "CoreWeave / Lambda (custom CAPI)", dyn, ns))
+	Register(NewCAPI("metal3", "Bare Metal — Metal3 (CAPM3)", dyn, ns))
+	Register(NewCAPI("nico", "Bare Metal — NICo (BlueField DPU sites)", dyn, ns))
 }

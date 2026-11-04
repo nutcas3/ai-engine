@@ -192,6 +192,15 @@ func (s *Server) DrainNodeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "node not found", http.StatusNotFound)
 		return
 	}
+	// Real path: ask the node's provider adapter to delete/drain the
+	// underlying Machine (CAPI handles cordon+drain+replacement). The mock
+	// adapter resolves to "mock"; unconfigured adapters fail soft — fleet
+	// state already reflects the drain.
+	if p, err := providers.Get(strings.ToLower(node.Provider)); err == nil && p.Ready() {
+		if err := p.DrainNode(r.Context(), id); err != nil {
+			log.Printf("provider drain for node %s: %v", id, err)
+		}
+	}
 	if isHTMX(r) {
 		templ.Handler(web.GPUCard(node)).ServeHTTP(w, r)
 		return
