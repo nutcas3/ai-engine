@@ -1,70 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
 	/* Colors */
-	--color-carbon-black: #000000;
-	--color-paper-white: #ffffff;
-	--color-warm-canvas: #e5e5e5;
-	--color-mist-gray: #f3f3f3;
-	--color-ash: #c6c6c6;
-	--color-smoke: #979797;
-	--color-slate: #444444;
-	--color-graphite: #2f2f2f;
-	--color-mint-chip: #d1ffca;
-	--color-voltage-yellow: #fff100;
+	--color-canvas: #f5f5f5;
+	--color-paper: #ffffff;
+	--color-surface-alt: #fafafa;
+	--color-ink: #0a0a0a;
+	--color-ink-soft: #171717;
+	--color-mid-gray: #737373;
+	--color-hairline: #e5e5e5;
+	--color-ember: #e7000b;
 
-	/* Typography — substitutes first so licensed Suisse fonts drop in later */
-	--font-suisseintlcond: 'Anton', 'SuisseIntlCond', 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
-	--font-suisseintl: 'Inter', 'SuisseIntl', ui-sans-serif, system-ui, -apple-system, sans-serif;
-	--font-suisseintlmono: 'JetBrains Mono', 'SuisseIntlMono', ui-monospace, SFMono-Regular, Menlo, monospace;
+	/* Typography */
+	--font-geist: 'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	--font-geist-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
 	/* Typography — Scale */
 	--text-caption: 12px;
-	--leading-caption: 1.6;
-	--tracking-caption: -0.36px;
-	--text-body-sm: 14px;
-	--leading-body-sm: 1.3;
-	--tracking-body-sm: -0.154px;
-	--text-body: 16px;
-	--leading-body: 1.25;
+	--leading-caption: 1.33;
+	--tracking-caption: 0.6px;
+	--text-body: 14px;
+	--leading-body: 1.43;
+	--text-body-lg: 16px;
+	--leading-body-lg: 1.5;
 	--text-subheading: 18px;
-	--leading-subheading: 1.33;
-	--text-subheading-lg: 20px;
-	--leading-subheading-lg: 1.2;
-	--text-heading-sm: 28px;
-	--leading-heading-sm: 1.3;
-	--tracking-heading-sm: -0.84px;
-	--text-heading: 40px;
-	--leading-heading: 1.1;
-	--tracking-heading: -0.8px;
-	--text-heading-lg: 48px;
-	--leading-heading-lg: 0.9;
-	--tracking-heading-lg: -1.44px;
-	--text-display: 80px;
-	--leading-display: 0.9;
+	--leading-subheading: 1.56;
+	--text-heading-sm: 24px;
+	--leading-heading-sm: 1.33;
+	--tracking-heading-sm: -0.6px;
+	--text-heading: 30px;
+	--leading-heading: 1.2;
+	--tracking-heading: -0.75px;
+	--text-heading-lg: 36px;
+	--leading-heading-lg: 1.11;
+	--tracking-heading-lg: -0.9px;
+	--text-display: 48px;
+	--leading-display: 1.1;
 	--tracking-display: -2.4px;
-	--text-display-xl: 130px;
-	--leading-display-xl: 0.9;
-	--tracking-display-xl: -3.9px;
 
 	/* Spacing */
+	--spacing-4: 4px;
 	--spacing-8: 8px;
+	--spacing-12: 12px;
 	--spacing-16: 16px;
+	--spacing-20: 20px;
 	--spacing-24: 24px;
-	--spacing-40: 40px;
-	--spacing-64: 64px;
-	--spacing-80: 80px;
-	--spacing-96: 96px;
+	--spacing-48: 48px;
 
 	/* Border Radius */
-	--radius-md: 4px;
-	--radius-lg: 8px;
-	--radius-xl: 12px;
-	--radius-2xl: 20px;
+	--radius-md: 6px;
+	--radius-lg: 10px;
+	--radius-xl: 14px;
+	--radius-2xl: 18px;
 	--radius-3xl: 24px;
-	--radius-3xl-2: 32px;
-	--radius-full: 48px;
-	--radius-full-2: 64px;
-	--radius-full-3: 9999px;
+
+	/* Shadows */
+	--shadow-subtle: oklab(0.145 -0.00000143796 0.00000340492 / 0.05) 0px 0px 0px 1px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+	--shadow-subtle-2: lab(2.75381 0 0) 0px 0px 0px 0px;
 }

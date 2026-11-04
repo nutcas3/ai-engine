@@ -8,7 +8,7 @@ import (
 
 // GPUCard renders a node card for the initial page load and htmx responses.
 templ GPUCard(n api.Node) {
-	<div id={ fmt.Sprintf("gpu-%s", n.ID) } class="bg-paper-white rounded-3xl p-6 relative flex flex-col justify-between transition-all">
+	<div id={ fmt.Sprintf("gpu-%s", n.ID) } class="bg-paper rounded-xl p-5 shadow-subtle relative flex flex-col justify-between transition-all">
 		@gpuCardInner(n)
 	</div>
 }
@@ -16,7 +16,7 @@ templ GPUCard(n api.Node) {
 // GPUCardOOB renders the same card tagged for an out-of-band swap, so a single
 // SSE stream can patch any card already on the page by id.
 templ GPUCardOOB(n api.Node) {
-	<div id={ fmt.Sprintf("gpu-%s", n.ID) } hx-swap-oob="outerHTML" class="bg-paper-white rounded-3xl p-6 relative flex flex-col justify-between transition-all">
+	<div id={ fmt.Sprintf("gpu-%s", n.ID) } hx-swap-oob="outerHTML" class="bg-paper rounded-xl p-5 shadow-subtle relative flex flex-col justify-between transition-all">
 		@gpuCardInner(n)
 	</div>
 }
@@ -33,69 +33,67 @@ templ gpuCardInner(n api.Node) {
 	<div>
 		<div class="flex items-center justify-between mb-4">
 			<div>
-				<h4 class="font-suisseintlcond text-xl tracking-tight uppercase text-carbon-black">{ n.Name }</h4>
-				<p class="text-xs text-smoke font-suisseintlmono mt-1">{ n.Provider } · { n.GPU.Model }</p>
+				<h4 class="text-body font-semibold tracking-tight text-ink">{ n.Name }</h4>
+				<p class="text-caption text-mid-gray font-geist-mono mt-0.5">{ n.Provider } · { n.GPU.Model }</p>
 			</div>
 			if n.Status() == "Ready" {
-				<span class="px-3 py-1 rounded-full text-xs font-suisseintlmono bg-mint-chip text-carbon-black">
+				<span class="px-2.5 py-0.5 rounded-full text-caption font-geist-mono bg-surface-alt border border-hairline text-ink">
 					READY
 				</span>
 			} else if n.Status() == "Degraded" {
-				<span class="px-3 py-1 rounded-full text-xs font-suisseintlmono bg-voltage-yellow text-carbon-black">
+				<span class="px-2.5 py-0.5 rounded-full text-caption font-geist-mono bg-ember/10 text-ember border border-ember/20">
 					XID FAULT
 				</span>
 			} else {
-				<span class="px-3 py-1 rounded-full text-xs font-suisseintlmono bg-graphite text-paper-white">
+				<span class="px-2.5 py-0.5 rounded-full text-caption font-geist-mono bg-ink text-paper">
 					DRAINING
 				</span>
 			}
 		</div>
-		<div class="space-y-2 mt-5">
-			<div class="flex justify-between text-xs font-suisseintlmono text-smoke">
-				<span>VRAM ALLOCATION</span>
-				<span class="text-carbon-black">{ fmt.Sprintf("%.1f / %.1f GB", n.GPU.VRAMUsedGB, n.GPU.VRAMTotalGB) }</span>
+		<div class="space-y-1.5 mt-4">
+			<div class="flex justify-between text-caption font-geist-mono text-mid-gray">
+				<span>VRAM</span>
+				<span class="text-ink">{ fmt.Sprintf("%.1f / %.1f GB", n.GPU.VRAMUsedGB, n.GPU.VRAMTotalGB) }</span>
 			</div>
-			<div class="w-full h-2.5 bg-mist-gray rounded-full overflow-hidden">
-				<div class="h-full bg-carbon-black transition-all duration-500" style={ fmt.Sprintf("width: %.1f%%", (n.GPU.VRAMUsedGB/n.GPU.VRAMTotalGB)*100) }></div>
+			<div class="w-full h-1.5 bg-hairline rounded-full overflow-hidden">
+				<div class="h-full bg-ink transition-all duration-500" style={ fmt.Sprintf("width: %.1f%%", (n.GPU.VRAMUsedGB/n.GPU.VRAMTotalGB)*100) }></div>
 			</div>
 		</div>
-		<div class="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-ash text-xs">
+		<div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-hairline">
 			<div>
-				<span class="text-smoke font-suisseintlmono">COMPUTE LOAD</span>
-				<p class="text-2xl font-suisseintlcond tracking-tight text-carbon-black mt-1">{ fmt.Sprintf("%d%%", n.GPU.Utilization) }</p>
+				<span class="text-caption font-geist-mono text-mid-gray">LOAD</span>
+				<p class="text-heading-sm font-semibold tracking-tight text-ink mt-0.5">{ fmt.Sprintf("%d%%", n.GPU.Utilization) }</p>
 			</div>
 			<div>
-				<span class="text-smoke font-suisseintlmono">CORE TEMP</span>
-				<p class="text-2xl font-suisseintlcond tracking-tight text-carbon-black mt-1">{ fmt.Sprintf("%d°C", n.GPU.TempC) }</p>
+				<span class="text-caption font-geist-mono text-mid-gray">TEMP</span>
+				<p class="text-heading-sm font-semibold tracking-tight text-ink mt-0.5">{ fmt.Sprintf("%d°C", n.GPU.TempC) }</p>
 			</div>
 		</div>
 		if len(n.GPU.XidErrors) > 0 {
-			<div class="mt-4">
-				<span class="text-xs font-suisseintlmono bg-voltage-yellow text-carbon-black px-2 py-0.5">
-					Xid { fmt.Sprintf("%v", n.GPU.XidErrors) }
-				</span>
+			<div class="mt-3 text-caption font-geist-mono text-ember">
+				Xid { fmt.Sprintf("%v", n.GPU.XidErrors) }
 			</div>
 		}
 	</div>
-	<div class="mt-6 pt-4 border-t border-ash">
+	<div class="mt-5 pt-4 border-t border-hairline">
 		if n.Status() == "Degraded" {
 			<button
 				hx-post={ fmt.Sprintf("/api/nodes/%s/drain", n.ID) }
 				hx-target={ fmt.Sprintf("#gpu-%s", n.ID) }
 				hx-swap="outerHTML"
-				class="w-full py-2.5 px-4 bg-carbon-black hover:bg-graphite text-paper-white text-xs font-suisseintlmono uppercase tracking-wide rounded-lg transition-colors"
+				class="w-full py-2 px-3 bg-ink hover:bg-ink-soft text-paper text-caption font-medium uppercase tracking-caption rounded-md transition-colors"
 			>
 				Drain Node &amp; Replace
 			</button>
 		} else if n.Status() == "Draining" {
-			<div class="text-center text-xs text-smoke font-suisseintlmono py-1">
+			<div class="text-center text-caption text-mid-gray font-geist-mono py-1">
 				TRIGGERING CAPI REPLACEMENT…
 			</div>
 		} else {
-			<div class="flex justify-between items-center text-xs text-smoke font-suisseintlmono">
+			<div class="flex justify-between items-center text-caption text-mid-gray font-geist-mono">
 				<span>VLLM ACTIVE</span>
-				<span class="flex items-center gap-1.5">
-					<span class="w-2 h-2 rounded-full bg-voltage-yellow"></span>
+				<span class="flex items-center gap-1.5 text-ink">
+					<span class="w-1.5 h-1.5 rounded-full bg-ember"></span>
 					HEALTHY
 				</span>
 			</div>
