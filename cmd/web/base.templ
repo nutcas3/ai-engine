@@ -1,30 +1,30 @@
 package web
 
-templ Base(title string) {
+templ Base(title string, brand Brand) {
 	<!DOCTYPE html>
 	<html lang="en" class="h-full bg-warm-canvas text-carbon-black">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width,initial-scale=1"/>
-			<title>{ title } - AI Engine Control Plane</title>
+			<title>{ title } - { brand.Name }</title>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
 			<script src="/assets/js/sse.js"></script>
 		</head>
-		<body class="h-full flex flex-col font-sans antialiased">
+		<body class="h-full flex flex-col font-suisseintl antialiased">
 			<header class="px-6 pt-6">
 				<nav class="max-w-7xl mx-auto h-16 px-6 bg-paper-white rounded-full flex items-center justify-between">
 					<div class="flex items-center gap-3">
-						<div class="w-8 h-8 rounded-lg bg-carbon-black flex items-center justify-center text-paper-white font-display text-sm tracking-tight">
-							AI
+						<div class="w-8 h-8 rounded-lg bg-carbon-black flex items-center justify-center text-paper-white font-suisseintlcond text-sm tracking-tight">
+							{ brand.Logo }
 						</div>
-						<span class="font-display text-lg tracking-tight uppercase">Engine Control Plane</span>
-						<span class="text-xs px-3 py-1 rounded-full bg-mist-gray text-smoke font-mono">cloud·agnostic</span>
+						<span class="font-suisseintlcond text-lg tracking-tight uppercase">{ brand.Name }</span>
+						<span class="text-xs px-3 py-1 rounded-full bg-mist-gray text-smoke font-suisseintlmono">{ brand.Tagline }</span>
 					</div>
 					<div class="flex items-center gap-4">
-						<span class="flex items-center gap-2 text-xs font-mono text-carbon-black bg-mint-chip px-3 py-1.5 rounded-full">
+						<span class="flex items-center gap-2 text-xs font-suisseintlmono text-carbon-black bg-mint-chip px-3 py-1.5 rounded-full">
 							<span class="w-2 h-2 rounded-full bg-voltage-yellow animate-pulse"></span>
-							CONTROL PLANE ACTIVE
+							{ brand.Status }
 						</span>
 					</div>
 				</nav>

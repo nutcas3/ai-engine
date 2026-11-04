@@ -5,14 +5,14 @@ import (
 	"ai-engine/internal/providers"
 )
 
-templ Dashboard(nodes []api.Node) {
-	@Base("Telemetry Dashboard") {
+templ Dashboard(nodes []api.Node, brand Brand) {
+	@Base("Telemetry Dashboard", brand) {
 		<div class="space-y-10 pt-4">
 			<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
 				<div>
-					<p class="text-xs font-mono text-smoke mb-2">FLEET / TELEMETRY / LIVE</p>
-					<h1 class="font-display text-5xl md:text-6xl tracking-tight leading-[0.9] uppercase text-carbon-black">GPU Fleet<br/>Telemetry</h1>
-					<p class="text-sm text-ink mt-3">Multi-cloud hardware health, VRAM utilization, and automated node remediation.</p>
+					<p class="text-xs font-suisseintlmono text-smoke mb-2">FLEET / TELEMETRY / LIVE</p>
+					<h1 class="font-suisseintlcond text-heading-lg md:text-display tracking-tight uppercase text-carbon-black">GPU Fleet<br/>Telemetry</h1>
+					<p class="text-sm text-slate mt-3">Multi-cloud hardware health, VRAM utilization, and automated node remediation.</p>
 				</div>
 				<button
 					hx-get="/api/clusters/provision"
@@ -41,11 +41,11 @@ templ ProvisionModal(providers []providers.Provider) {
 		<div class="bg-paper-white rounded-[32px] w-full max-w-md p-8">
 			<div class="flex items-center justify-between mb-6">
 				<h2 class="font-display text-2xl tracking-tight uppercase text-carbon-black">Provision Pool</h2>
-				<button hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="w-8 h-8 rounded-full bg-mist-gray text-ink hover:bg-ash flex items-center justify-center text-lg leading-none">&times;</button>
+				<button hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="w-8 h-8 rounded-full bg-mist-gray text-slate hover:bg-ash flex items-center justify-center text-lg leading-none">&times;</button>
 			</div>
 			<form hx-post="/api/nodePools" hx-target="#fleet-grid" hx-swap="beforeend" class="space-y-5">
 				<div>
-					<label class="block text-xs font-mono text-smoke mb-2">INFRASTRUCTURE PROVIDER</label>
+					<label class="block text-xs font-suisseintlmono text-smoke mb-2">INFRASTRUCTURE PROVIDER</label>
 					<select name="provider" class="w-full bg-mist-gray rounded-lg px-4 py-3 text-sm text-carbon-black focus:outline-none focus:ring-2 focus:ring-carbon-black">
 						for _, p := range providers {
 							if p.Ready() {
@@ -57,12 +57,12 @@ templ ProvisionModal(providers []providers.Provider) {
 					</select>
 				</div>
 				<div>
-					<label class="block text-xs font-mono text-smoke mb-2">POOL NAME</label>
+					<label class="block text-xs font-suisseintlmono text-smoke mb-2">POOL NAME</label>
 					<input name="name" type="text" required placeholder="e.g. h100-inference-pool" class="w-full bg-mist-gray rounded-lg px-4 py-3 text-sm text-carbon-black focus:outline-none focus:ring-2 focus:ring-carbon-black"/>
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-xs font-mono text-smoke mb-2">GPU MODEL</label>
+						<label class="block text-xs font-suisseintlmono text-smoke mb-2">GPU MODEL</label>
 						<select name="gpu_model" class="w-full bg-mist-gray rounded-lg px-4 py-3 text-sm text-carbon-black focus:outline-none focus:ring-2 focus:ring-carbon-black">
 							<option>NVIDIA H100 80GB</option>
 							<option>NVIDIA A100 80GB</option>
@@ -71,12 +71,12 @@ templ ProvisionModal(providers []providers.Provider) {
 						</select>
 					</div>
 					<div>
-						<label class="block text-xs font-mono text-smoke mb-2">NODE COUNT</label>
+						<label class="block text-xs font-suisseintlmono text-smoke mb-2">NODE COUNT</label>
 						<input name="count" type="number" min="1" max="8" value="1" class="w-full bg-mist-gray rounded-lg px-4 py-3 text-sm text-carbon-black focus:outline-none focus:ring-2 focus:ring-carbon-black"/>
 					</div>
 				</div>
 				<div class="pt-2 flex justify-end gap-3">
-					<button type="button" hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="px-4 py-2.5 text-sm text-ink hover:text-carbon-black transition-colors">Cancel</button>
+					<button type="button" hx-get="/api/clusters/provision/close" hx-target="#modal-container" class="px-4 py-2.5 text-sm text-slate hover:text-carbon-black transition-colors">Cancel</button>
 					<button type="submit" class="px-5 py-2.5 bg-carbon-black hover:bg-graphite text-paper-white text-sm font-medium rounded-lg transition-colors">Provision via CAPI</button>
 				</div>
 			</form>
