@@ -67,5 +67,29 @@ The control plane rebrands via env vars (see `.env`):
 | `BRAND_LOGO` | AI | logo square |
 | `BRAND_TAGLINE` | cloud·agnostic | chip next to the name |
 | `BRAND_STATUS` | Control Plane Active | mint status pill |
+| `BRAND_THEME` | light | initial theme: `light`, `dark`, or `brutalist` |
 
 Example: `BRAND_NAME="Acme GPU Cloud" BRAND_LOGO=AC ./main`
+
+## CI, releases, and container images
+
+GitHub Actions runs `make verify` on pushes and pull requests. Releases use
+[Conventional Commits](https://www.conventionalcommits.org/): pushes to
+`main` maintain a Release Please PR with the next semantic version and
+changelog. Merge that PR to create the `vX.Y.Z` tag and publish:
+
+- Cross-platform Linux, macOS, and Windows binaries for amd64 and arm64,
+  plus `checksums.txt`, attached to the GitHub Release.
+- A multi-architecture container image published to
+  `ghcr.io/nutcas3/ai-engine:<version>` and `:latest`.
+
+Examples: `feat: add cluster autoscaling` triggers a minor release;
+`fix: handle empty telemetry` triggers a patch release; include `BREAKING
+CHANGE:` in the commit body for a major release. Other commit types (such as
+`docs:` and `chore:`) do not trigger a version bump.
+
+No PAT or extra release secret is needed. The workflows use the repository's
+`GITHUB_TOKEN`. In repository Settings → Actions → General, allow GitHub
+Actions to create pull requests so Release Please can open its version PR.
+To make the GHCR package public, set its visibility to Public once under the
+repository owner's Packages settings; subsequent images publish automatically.
