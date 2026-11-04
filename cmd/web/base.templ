@@ -1,5 +1,47 @@
 package web
 
+// icon renders a monoline SVG by key (stroke-current, inherits text color).
+templ icon(name string) {
+	<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+		switch name {
+			case "overview":
+				<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+			case "clusters":
+				<rect x="2" y="4" width="20" height="6" rx="1.5"/><rect x="2" y="14" width="20" height="6" rx="1.5"/><path d="M6 7h.01M6 17h.01"/>
+			case "nodepools":
+				<path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>
+			case "nodes":
+				<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+			case "releases":
+				<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828l-8-8Z"/><path d="M7 7h.01"/>
+			case "inference":
+				<path d="M13 2 3 14h7l-1 8 12-14h-8l0-6Z"/>
+			case "finops":
+				<path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 6-6"/>
+			case "providers":
+				<path d="M17.5 19a4.5 4.5 0 1 0-.42-8.98 6 6 0 1 0-11.06 3.48A4 4 0 0 0 7 20h10.5Z"/>
+		}
+	</svg>
+}
+
+templ navLink(href, label, key, current string) {
+	if key == current {
+		<a href={ templ.SafeURL(href) } title={ label } class="nav-item flex items-center gap-2.5 px-3 py-1.5 rounded-md text-body font-medium text-ink bg-surface-alt border border-hairline">
+			@icon(key)
+			<span class="nav-label truncate">{ label }</span>
+		</a>
+	} else {
+		<a href={ templ.SafeURL(href) } title={ label } class="nav-item flex items-center gap-2.5 px-3 py-1.5 rounded-md text-body text-mid-gray hover:text-ink hover:bg-surface-alt border border-transparent transition-colors">
+			@icon(key)
+			<span class="nav-label truncate">{ label }</span>
+		</a>
+	}
+}
+
+templ navSection(label string) {
+	<div class="nav-section pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">{ label }</div>
+}
+
 templ Base(title, section string, brand Brand) {
 	<!DOCTYPE html>
 	<html lang="en" class="h-full bg-canvas text-ink">
@@ -8,37 +50,46 @@ templ Base(title, section string, brand Brand) {
 			<meta name="viewport" content="width=device-width,initial-scale=1"/>
 			<title>{ title } - { brand.Name }</title>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
+			<script>
+				// Restore sidebar state before paint to avoid a flash.
+				if (localStorage.getItem("sidebar-collapsed") === "1") {
+					document.documentElement.classList.add("sidebar-collapsed");
+				}
+			</script>
 			<script src="/assets/js/htmx.min.js"></script>
 			<script src="/assets/js/sse.js"></script>
 		</head>
 		<body class="h-full flex font-geist antialiased">
-			<aside class="w-56 shrink-0 bg-paper border-r border-hairline flex flex-col h-screen sticky top-0">
+			<aside id="sidebar" class="w-56 shrink-0 bg-paper border-r border-hairline flex flex-col h-screen sticky top-0 transition-[width] duration-200">
 				<div class="h-14 px-4 flex items-center gap-2.5 border-b border-hairline">
-					<div class="w-7 h-7 rounded-md bg-ink flex items-center justify-center text-paper text-xs font-semibold tracking-tight">
+					<div class="w-7 h-7 rounded-md bg-ink flex items-center justify-center text-paper text-xs font-semibold tracking-tight shrink-0">
 						{ brand.Logo }
 					</div>
-					<div class="min-w-0">
+					<div class="brand-text min-w-0">
 						<div class="text-body font-semibold tracking-tight truncate">{ brand.Name }</div>
 						<div class="text-caption font-geist-mono text-mid-gray truncate">{ brand.Tagline }</div>
 					</div>
+					<button id="sidebar-toggle" title="Toggle sidebar" class="ml-auto w-6 h-6 rounded-md text-mid-gray hover:text-ink hover:bg-surface-alt flex items-center justify-center transition-colors">
+						<svg class="w-3.5 h-3.5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+					</button>
 				</div>
-				<nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+				<nav class="flex-1 p-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
 					@navLink("/", "Overview", "overview", section)
-					<div class="pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">FLEET</div>
+					@navSection("FLEET")
 					@navLink("/clusters", "Clusters", "clusters", section)
 					@navLink("/nodepools", "Node Pools", "nodepools", section)
 					@navLink("/nodes", "Nodes", "nodes", section)
 					@navLink("/releases", "Releases", "releases", section)
-					<div class="pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">WORKLOADS</div>
+					@navSection("WORKLOADS")
 					@navLink("/inference", "Inference", "inference", section)
 					@navLink("/finops", "FinOps", "finops", section)
-					<div class="pt-3 pb-1 px-3 text-caption font-geist-mono text-mid-gray">SYSTEM</div>
+					@navSection("SYSTEM")
 					@navLink("/providers", "Providers", "providers", section)
 				</nav>
 				<div class="p-3 border-t border-hairline">
-					<span class="flex items-center gap-1.5 text-caption font-geist-mono text-ink bg-surface-alt border border-hairline px-2.5 py-1 rounded-full w-fit">
-						<span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse"></span>
-						{ brand.Status }
+					<span class="nav-status flex items-center gap-1.5 text-caption font-geist-mono text-ink bg-surface-alt border border-hairline px-2.5 py-1 rounded-full w-fit">
+						<span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse shrink-0"></span>
+						<span class="nav-label">{ brand.Status }</span>
 					</span>
 				</div>
 			</aside>
@@ -47,18 +98,13 @@ templ Base(title, section string, brand Brand) {
 					{ children... }
 				</main>
 			</div>
+			<script>
+				document.getElementById("sidebar-toggle").addEventListener("click", function () {
+					var root = document.documentElement;
+					root.classList.toggle("sidebar-collapsed");
+					localStorage.setItem("sidebar-collapsed", root.classList.contains("sidebar-collapsed") ? "1" : "0");
+				});
+			</script>
 		</body>
 	</html>
-}
-
-templ navLink(href, label, key, current string) {
-	if key == current {
-		<a href={ templ.SafeURL(href) } class="flex items-center px-3 py-1.5 rounded-md text-body font-medium text-ink bg-surface-alt border border-hairline">
-			{ label }
-		</a>
-	} else {
-		<a href={ templ.SafeURL(href) } class="flex items-center px-3 py-1.5 rounded-md text-body text-mid-gray hover:text-ink hover:bg-surface-alt border border-transparent transition-colors">
-			{ label }
-		</a>
-	}
 }
