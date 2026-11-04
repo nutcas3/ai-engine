@@ -16,12 +16,19 @@ import (
 var capiResources = []struct{ group, res string }{
 	{"cluster.x-k8s.io", "machines"},
 	{"cluster.x-k8s.io", "machinedeployments"},
+	{"cluster.x-k8s.io", "clusters"},
 	{"bootstrap.cluster.x-k8s.io", "kubeadmconfigtemplates"},
+	{"controlplane.cluster.x-k8s.io", "kubeadmcontrolplanes"},
 	{"infrastructure.cluster.x-k8s.io", "awsmachinetemplates"},
 	{"infrastructure.cluster.x-k8s.io", "gcpmachinetemplates"},
 	{"infrastructure.cluster.x-k8s.io", "azuremachinetemplates"},
 	{"infrastructure.cluster.x-k8s.io", "metal3machinetemplates"},
 	{"infrastructure.cluster.x-k8s.io", "nicomachinetemplates"},
+	{"infrastructure.cluster.x-k8s.io", "awsclusters"},
+	{"infrastructure.cluster.x-k8s.io", "gcpclusters"},
+	{"infrastructure.cluster.x-k8s.io", "azureclusters"},
+	{"infrastructure.cluster.x-k8s.io", "metal3clusters"},
+	{"infrastructure.cluster.x-k8s.io", "nicoclusters"},
 }
 
 func fakeDyn(objs ...*unstructured.Unstructured) *dynamicfake.FakeDynamicClient {
@@ -80,6 +87,58 @@ func TestCAPIProvisionAppliesCAPIObjects(t *testing.T) {
 		if got == nil {
 			t.Fatalf("%s/%s not applied", check.res, check.name)
 		}
+	}
+}
+
+func TestCAPIProvisionClusterAppliesDay0Objects(t *testing.T) {
+	p := NewCAPI("aws", "test", fakeDyn(), "default")
+	cl, err := p.ProvisionCluster(context.Background(), api.CreateClusterRequest{
+		Name:                          "gpu-fleet",
+		Tier:                          "optimal",
+		ControlPlaneKubernetesVersion: "1.33.4",
+		Provider: api.InfraProvider{Kind: "aws", Config: map[string]string{
+			"region": "us-east-1", "controlPlaneCount": "3",
+		}},
+		NodePools: []api.NodePoolCreateSpec{{
+			Name: "h100-pool", DesiredNodeCount: 2, GPUModel: "NVIDIA H100 80GB",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("provision cluster: %v", err)
+	}
+	if cl.Tier != "optimal" || cl.Conditions[0].Type != "Provisioning" {
+		t.Fatalf("unexpected cluster: %+v", cl)
+	}
+
+	ctx := context.Background()
+	for _, check := range []struct{ group, res, name string }{
+		{"infrastructure.cluster.x-k8s.io", "awsclusters", "gpu-fleet"},
+		{"infrastructure.cluster.x-k8s.io", "awsmachinetemplates", "gpu-fleet-cp-mt"},
+		{"controlplane.cluster.x-k8s.io", "kubeadmcontrolplanes", "gpu-fleet-kcp"},
+		{"cluster.x-k8s.io", "clusters", "gpu-fleet"},
+		{"cluster.x-k8s.io", "machinedeployments", "h100-pool"},
+	} {
+		var got *unstructured.Unstructured
+		for _, v := range capiVersions {
+			if o, err := p.dyn.Resource(schema.GroupVersionResource{Group: check.group, Version: v, Resource: check.res}).
+				Namespace("default").Get(ctx, check.name, metav1.GetOptions{}); err == nil {
+				got = o
+				break
+			}
+		}
+		if got == nil {
+			t.Fatalf("%s/%s not applied", check.res, check.name)
+		}
+	}
+	// Control-plane replica count flowed through.
+	kcp, _ := p.dyn.Resource(schema.GroupVersionResource{Group: "controlplane.cluster.x-k8s.io", Version: capiVersions[0], Resource: "kubeadmcontrolplanes"}).
+		Namespace("default").Get(ctx, "gpu-fleet-kcp", metav1.GetOptions{})
+	if kcp == nil {
+		kcp, _ = p.dyn.Resource(schema.GroupVersionResource{Group: "controlplane.cluster.x-k8s.io", Version: capiVersions[1], Resource: "kubeadmcontrolplanes"}).
+			Namespace("default").Get(ctx, "gpu-fleet-kcp", metav1.GetOptions{})
+	}
+	if replicas, _, _ := unstructured.NestedInt64(kcp.Object, "spec", "replicas"); replicas != 3 {
+		t.Fatalf("expected 3 control-plane replicas, got %d", replicas)
 	}
 }
 

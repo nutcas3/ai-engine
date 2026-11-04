@@ -68,6 +68,32 @@ func (m *Mock) ProvisionNodePool(_ context.Context, spec api.NodePoolCreateSpec)
 	}}, nil
 }
 
+// ProvisionCluster satisfies ClusterProvisioner for the mock: it mirrors the
+// CAPI create flow entirely in memory (cluster + optional pools).
+func (m *Mock) ProvisionCluster(ctx context.Context, req api.CreateClusterRequest) (*api.Cluster, error) {
+	tier := req.Tier
+	if tier == "" {
+		tier = "optimal"
+	}
+	pools := make([]api.NodePool, 0, len(req.NodePools))
+	for _, spec := range req.NodePools {
+		spec.Provider = req.Provider
+		res, err := m.ProvisionNodePool(ctx, spec)
+		if err != nil {
+			return nil, err
+		}
+		pools = append(pools, res.Pool)
+	}
+	return &api.Cluster{
+		ID: "cluster-" + req.Name, Name: req.Name, Tier: tier,
+		ControlPlaneKubernetesVersion: req.ControlPlaneKubernetesVersion,
+		CNIPlugin: "cilium", EtcdEncrypted: req.EtcdEncrypted,
+		Provider: req.Provider, NodePools: pools,
+		Conditions: []api.Condition{{Type: "Ready", Status: "True", LastTransitionTime: time.Now()}},
+		CreatedAt:  time.Now(),
+	}, nil
+}
+
 func (m *Mock) DrainNode(_ context.Context, nodeID string) error {
 	if m.fleet == nil {
 		return ErrNotConfigured

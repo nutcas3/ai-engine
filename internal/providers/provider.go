@@ -31,6 +31,15 @@ type Provider interface {
 	DrainNode(ctx context.Context, nodeID string) error
 }
 
+// ClusterProvisioner is the optional extension for providers that can create
+// the management-cluster objects for a whole Cluster (Cluster +
+// <Kind>Cluster + KubeadmControlPlane + CP MachineTemplate), not just worker
+// pools. CAPI implements it; the Mock returns an in-memory cluster so the
+// create flow works end-to-end in dev.
+type ClusterProvisioner interface {
+	ProvisionCluster(ctx context.Context, req api.CreateClusterRequest) (*api.Cluster, error)
+}
+
 // ErrNotConfigured marks adapters that exist as placeholders but have no
 // credentials/controller wired up yet.
 var ErrNotConfigured = errors.New("provider adapter not configured")
