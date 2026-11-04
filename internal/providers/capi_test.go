@@ -61,7 +61,7 @@ func spec(name string) api.NodePoolCreateSpec {
 }
 
 func TestCAPIProvisionAppliesCAPIObjects(t *testing.T) {
-	p := NewCAPI("aws", "test", fakeDyn(), "default")
+	p := NewCAPI("aws", "test", fakeDyn(), "default", true)
 	res, err := p.ProvisionNodePool(context.Background(), spec("h100-pool"))
 	if err != nil {
 		t.Fatalf("provision: %v", err)
@@ -91,7 +91,7 @@ func TestCAPIProvisionAppliesCAPIObjects(t *testing.T) {
 }
 
 func TestCAPIProvisionClusterAppliesDay0Objects(t *testing.T) {
-	p := NewCAPI("aws", "test", fakeDyn(), "default")
+	p := NewCAPI("aws", "test", fakeDyn(), "default", true)
 	cl, err := p.ProvisionCluster(context.Background(), api.CreateClusterRequest{
 		Name:                          "gpu-fleet",
 		Tier:                          "optimal",
@@ -148,7 +148,7 @@ func TestCAPIDrainDeletesMachine(t *testing.T) {
 		"kind":       "Machine",
 		"metadata":   map[string]any{"name": "gpu-node-1", "namespace": "default"},
 	}}
-	p := NewCAPI("aws", "test", fakeDyn(machine), "default")
+	p := NewCAPI("aws", "test", fakeDyn(machine), "default", true)
 	if err := p.DrainNode(context.Background(), "gpu-node-1"); err != nil {
 		t.Fatalf("drain: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestCAPIDrainDeletesMachine(t *testing.T) {
 }
 
 func TestCAPINotConfigured(t *testing.T) {
-	p := NewCAPI("aws", "test", nil, "default")
+	p := NewCAPI("aws", "test", nil, "default", false)
 	if p.Ready() {
 		t.Fatal("expected Ready()=false with nil client")
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"ai-engine/internal/api"
 )
@@ -70,13 +71,20 @@ func List() []Provider {
 }
 
 func init() {
-	// One shared management-cluster client for every CAPI adapter. When no
-	// kubeconfig resolves, dyn stays nil and adapters report Ready()=false.
+	// One shared management-cluster client for every CAPI adapter. Ready()
+	// requires both a resolvable kubeconfig AND the CAPI CRDs installed —
+	// probed once at startup with a bounded timeout.
 	dyn, ns, _ := capiClientFromEnv()
-	Register(NewCAPI("aws", "AWS — CAPA (EKS/EC2)", dyn, ns))
-	Register(NewCAPI("gcp", "GCP — CAPG (GKE/GCE)", dyn, ns))
-	Register(NewCAPI("azure", "Azure — CAPZ (AKS/VMs)", dyn, ns))
-	Register(NewCAPI("coreweave", "CoreWeave / Lambda (custom CAPI)", dyn, ns))
-	Register(NewCAPI("metal3", "Bare Metal — Metal3 (CAPM3)", dyn, ns))
-	Register(NewCAPI("nico", "Bare Metal — NICo (BlueField DPU sites)", dyn, ns))
+	ready := false
+	if dyn != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ready = probeCAPI(ctx, dyn)
+		cancel()
+	}
+	Register(NewCAPI("aws", "AWS — CAPA (EKS/EC2)", dyn, ns, ready))
+	Register(NewCAPI("gcp", "GCP — CAPG (GKE/GCE)", dyn, ns, ready))
+	Register(NewCAPI("azure", "Azure — CAPZ (AKS/VMs)", dyn, ns, ready))
+	Register(NewCAPI("coreweave", "CoreWeave / Lambda (custom CAPI)", dyn, ns, ready))
+	Register(NewCAPI("metal3", "Bare Metal — Metal3 (CAPM3)", dyn, ns, ready))
+	Register(NewCAPI("nico", "Bare Metal — NICo (BlueField DPU sites)", dyn, ns, ready))
 }
