@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,26 +9,37 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+
+	"ai-engine/internal/fleet"
+	"ai-engine/internal/providers"
+	"ai-engine/internal/telemetry"
 )
 
 type Server struct {
-	port int
+	port        int
+	fleet       *fleet.Manager
+	broadcaster *telemetry.Broadcaster
 }
 
-func NewServer() *http.Server {
+func NewServer(ctx context.Context) *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	NewServer := &Server{
-		port: port,
+	s := &Server{
+		port:        port,
+		fleet:       fleet.NewManager(),
+		broadcaster: telemetry.NewBroadcaster(),
 	}
 
-	// Declare Server config
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.port),
-		Handler:      NewServer.RegisterRoutes(),
+	// Register the fleet-bound mock provider (CAPI stubs self-register in
+	// the providers package init).
+	providers.Register(providers.NewMock(s.fleet))
+
+	go s.runTelemetry(ctx)
+
+	return &http.Server{
+		Addr:         fmt.Sprintf(":%d", s.port),
+		Handler:      s.RegisterRoutes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
-
-	return server
 }

@@ -1,0 +1,94 @@
+package web
+
+import (
+	"fmt"
+
+	"ai-engine/internal/fleet"
+)
+
+// GPUCard renders a node card for the initial page load and htmx responses.
+templ GPUCard(gpu fleet.GPUNode) {
+	<div id={ fmt.Sprintf("gpu-%s", gpu.ID) } class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative flex flex-col justify-between transition-all">
+		@gpuCardInner(gpu)
+	</div>
+}
+
+// GPUCardOOB renders the same card tagged for an out-of-band swap, so a single
+// SSE stream can patch any card already on the page by id.
+templ GPUCardOOB(gpu fleet.GPUNode) {
+	<div id={ fmt.Sprintf("gpu-%s", gpu.ID) } hx-swap-oob="outerHTML" class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative flex flex-col justify-between transition-all">
+		@gpuCardInner(gpu)
+	</div>
+}
+
+// GPUCardAppend renders a card tagged to be appended into the fleet grid,
+// used when a newly provisioned node appears on the SSE stream.
+templ GPUCardAppend(gpu fleet.GPUNode) {
+	<div hx-swap-oob="beforeend:#fleet-grid">
+		@GPUCard(gpu)
+	</div>
+}
+
+templ gpuCardInner(gpu fleet.GPUNode) {
+	<div>
+		<div class="flex items-center justify-between mb-3">
+			<div>
+				<h4 class="font-semibold text-slate-200 text-sm tracking-wide">{ gpu.Name }</h4>
+				<p class="text-xs text-slate-400 uppercase font-mono mt-0.5">{ gpu.Provider } • { gpu.GPUModel }</p>
+			</div>
+			if gpu.Status == "Ready" {
+				<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+					Ready
+				</span>
+			} else if gpu.Status == "Degraded" {
+				<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+					Xid Fault
+				</span>
+			} else {
+				<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+					Draining (CAPI)
+				</span>
+			}
+		</div>
+		<div class="space-y-1.5 mt-4">
+			<div class="flex justify-between text-xs text-slate-400">
+				<span>VRAM Allocation</span>
+				<span class="font-mono text-slate-200">{ fmt.Sprintf("%.1f / %.1f GB", gpu.VRAMUsedGB, gpu.VRAMTotalGB) }</span>
+			</div>
+			<div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+				<div class="h-full bg-indigo-500 transition-all duration-500" style={ fmt.Sprintf("width: %.1f%%", (gpu.VRAMUsedGB/gpu.VRAMTotalGB)*100) }></div>
+			</div>
+		</div>
+		<div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800/80 text-xs">
+			<div>
+				<span class="text-slate-400">Compute Load</span>
+				<p class="text-sm font-semibold text-slate-100 font-mono mt-0.5">{ fmt.Sprintf("%d%%", gpu.Utilization) }</p>
+			</div>
+			<div>
+				<span class="text-slate-400">Core Temp</span>
+				<p class="text-sm font-semibold text-slate-100 font-mono mt-0.5">{ fmt.Sprintf("%d°C", gpu.TempC) }</p>
+			</div>
+		</div>
+	</div>
+	<div class="mt-5 pt-3 border-t border-slate-800">
+		if gpu.Status == "Degraded" {
+			<button
+				hx-post={ fmt.Sprintf("/api/nodes/%s/drain", gpu.ID) }
+				hx-target={ fmt.Sprintf("#gpu-%s", gpu.ID) }
+				hx-swap="outerHTML"
+				class="w-full py-2 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs font-medium rounded-lg transition-colors"
+			>
+				Drain Node &amp; Spin Up Replacement
+			</button>
+		} else if gpu.Status == "Draining" {
+			<div class="text-center text-xs text-slate-500 font-mono py-1">
+				Triggering CAPI Replacement...
+			</div>
+		} else {
+			<div class="flex justify-between items-center text-xs text-slate-500 font-mono">
+				<span>vLLM Active</span>
+				<span class="text-emerald-400">Healthy</span>
+			</div>
+		}
+	</div>
+}

@@ -39,7 +39,10 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 
 func main() {
 
-	server := server.NewServer()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	server := server.NewServer(ctx)
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)

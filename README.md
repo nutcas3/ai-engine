@@ -1,53 +1,58 @@
-# Project ai-engine
+# ai-engine
 
-One Paragraph of project description goes here
+Cloud-agnostic AI engine control plane — a single Go binary serving a
+templ + htmx dashboard for GPU fleet telemetry, node remediation, and
+multi-cloud node-pool provisioning. Modeled on NVIDIA NVKE.
 
-## Getting Started
+See [plan.md](plan.md) for the full architecture and [docs/architecture.md](docs/architecture.md) for the package map.
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+## Stack
 
-## MakeFile
+- **Go** stdlib `net/http` — control-plane API
+- **templ** — type-safe HTML components compiled to Go
+- **htmx 2.x + SSE ext** — live metric swaps, no JS framework
+- **Tailwind CSS v4** — standalone CLI, CSS-first config
 
-Run build make command with tests
-```bash
-make all
+## Run
+
+```sh
+make build    # templ generate + tailwind + go build -o main
+PORT=8090 ./main
 ```
 
-Build the application
-```bash
-make build
+or live-reload dev loop: `make watch` (requires `air`).
+
+Open `http://localhost:8090` — three seeded GPU nodes (AWS/CAPA,
+CoreWeave, on-prem Metal3) stream metrics over SSE every 2s. The Degraded
+node exposes a drain action that swaps its card to `Draining (CAPI)`.
+`+ Provision Node Pool` opens the provider modal; only the Mock provider
+provisions until CAPI adapters are configured.
+
+## Endpoints
+
+| Route | Purpose |
+|---|---|
+| `GET /` | Fleet dashboard |
+| `GET /health` | Liveness |
+| `GET /api/telemetry/stream` | SSE `gpu-metrics` stream (OOB card fragments) |
+| `POST /api/nodes/{id}/drain` | Drain node → returns updated card |
+| `GET /api/clusters/provision` | Provision modal |
+| `POST /api/clusters` | Provision node pool via provider adapter |
+
+## Layout
+
+```
+cmd/api            entry point
+cmd/web            templ views + embedded assets (htmx, sse.js, output.css)
+internal/fleet     in-memory GPUNode state
+internal/providers Provider interface + registry (mock, CAPI stubs)
+internal/telemetry SSE broadcaster + DCGM/Xid classification
+internal/server    routes, handlers, telemetry loop
+deploy/            manifests: clusterapi, gpu-operator, kueue, cilium,
+                   gateway-api (inference ext), fluid weight caching
+docs/              architecture.md
 ```
 
-Run the application
-```bash
-make run
-```
-Create DB container
-```bash
-make docker-run
-```
-
-Shutdown DB Container
-```bash
-make docker-down
-```
-
-DB Integrations Test:
-```bash
-make itest
-```
-
-Live reload the application:
-```bash
-make watch
-```
-
-Run the test suite:
-```bash
-make test
-```
-
-Clean up binary from the last build:
-```bash
-make clean
-```
+Generated with [go-blueprint](https://github.com/Melkeydev/go-blueprint)
+(stdlib backend, htmx, tailwind, docker, githubaction), then extended with
+the engine layers.

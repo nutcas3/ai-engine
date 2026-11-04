@@ -1,0 +1,40 @@
+# NVIDIA GPU Operator (v26.7.x) Helm values.
+# Install: helm install gpu-operator nvidia/gpu-operator -n gpu-operator -f values.yaml
+# Same values apply identically on AWS, GCP, CoreWeave, and bare metal.
+
+operator:
+  defaultRuntime: containerd
+
+# Drivers managed in-cluster; on clouds with preinstalled drivers set
+# driver.enabled=false.
+driver:
+  enabled: true
+
+toolkit:
+  enabled: true
+
+# Device plugin stays enabled as fallback even where DRA is on.
+devicePlugin:
+  enabled: true
+
+mig:
+  strategy: mixed
+
+# DRA driver for NVIDIA GPUs (ResourceClaim-based allocation, CEL device
+# selection, ComputeDomain for multi-node NVLink). Requires K8s >= 1.32;
+# enabled-by-default from 1.34. GPU-side allocation is still maturing —
+# enable per-cluster, keep devicePlugin as fallback.
+dra:
+  enabled: false
+
+dcgmExporter:
+  enabled: true
+  serviceMonitor:
+    enabled: true # requires Prometheus Operator
+  # Xid/ECC/thermal fields are scraped by the control-plane health controller.
+
+gfd:
+  enabled: true # GPU Feature Discovery node labels
+
+nodeStatusExporter:
+  enabled: true
