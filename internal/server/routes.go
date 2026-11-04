@@ -109,10 +109,20 @@ func (s *Server) CreateClusterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	// Real path: the provider adapter applies Cluster/<Kind>Cluster/
-	// KubeadmControlPlane/pools on the management cluster, then fleet
-	// registers the record it returns. Falls back to in-memory registration
-	// when the provider isn't configured (mirrors pool provisioning).
+	// Durable path: write the record + a workflow_outbox row in one
+	// transaction; the processor drives provisioning asynchronously —
+	// this handler never calls the orchestrator directly.
+	if s.store != nil {
+		c := s.fleet.CreateCluster(req)
+		job := map[string]any{"type": "cluster.provision", "cluster": req}
+		if err := s.store.Enqueue(r.Context(), "cluster", c.ID, c, job); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusCreated, c)
+		return
+	}
+	// In-memory path (dev): provision synchronously through the adapter.
 	if p, err := providers.Get(req.Provider.Kind); err == nil && p.Ready() {
 		if cp, ok := p.(providers.ClusterProvisioner); ok {
 			cluster, err := cp.ProvisionCluster(r.Context(), req)
@@ -162,6 +172,23 @@ func (s *Server) CreateNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 
 	if spec.Name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	// Durable path: record + outbox row in one transaction; the processor
+	// provisions asynchronously and fleet picks it up when it lands.
+	if s.store != nil {
+		pool := api.NodePool{
+			ID: "pool-" + spec.Name, Name: spec.Name,
+			DesiredNodeCount: spec.DesiredNodeCount, Provider: spec.Provider,
+			Conditions: []api.Condition{{Type: "Provisioning", Status: "True",
+				Reason: "Queued", LastTransitionTime: time.Now()}},
+		}
+		job := map[string]any{"type": "nodepool.provision", "nodePool": spec}
+		if err := s.store.Enqueue(r.Context(), "nodepool", pool.ID, pool, job); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, pool)
 		return
 	}
 	p, err := providers.Get(spec.Provider.Kind)

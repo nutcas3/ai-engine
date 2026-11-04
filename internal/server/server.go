@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,7 +14,9 @@ import (
 	"ai-engine/cmd/web"
 	"ai-engine/internal/fleet"
 	"ai-engine/internal/providers"
+	"ai-engine/internal/store"
 	"ai-engine/internal/telemetry"
+	"ai-engine/internal/worker"
 )
 
 type Server struct {
@@ -21,6 +24,7 @@ type Server struct {
 	fleet       *fleet.Manager
 	broadcaster *telemetry.Broadcaster
 	brand       web.Brand
+	store       *store.Store
 }
 
 func NewServer(ctx context.Context) *http.Server {
@@ -30,6 +34,17 @@ func NewServer(ctx context.Context) *http.Server {
 		fleet:       fleet.NewManager(),
 		broadcaster: telemetry.NewBroadcaster(),
 		brand:       web.LoadBrand(),
+	}
+	// Durable state + outbox processor when DATABASE_URL is set; in-memory
+	// only otherwise (local dev).
+	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
+		if st, err := store.Open(dsn); err != nil {
+			log.Printf("DATABASE_URL set but store unavailable (%v) — continuing in-memory", err)
+		} else {
+			s.store = st
+			go worker.New(st, s.fleet).Run(ctx)
+			log.Println("durable store + outbox processor enabled")
+		}
 	}
 
 	// Register the fleet-bound mock provider (CAPI stubs self-register in
