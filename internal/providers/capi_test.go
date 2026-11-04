@@ -84,10 +84,10 @@ func TestCAPIProvisionAppliesCAPIObjects(t *testing.T) {
 }
 
 func TestCAPIDrainDeletesMachine(t *testing.T) {
-	machine := &unstructured.Unstructured{Object: map[string]interface{}{
+	machine := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "cluster.x-k8s.io/v1beta1",
 		"kind":       "Machine",
-		"metadata":   map[string]interface{}{"name": "gpu-node-1", "namespace": "default"},
+		"metadata":   map[string]any{"name": "gpu-node-1", "namespace": "default"},
 	}}
 	p := NewCAPI("aws", "test", fakeDyn(machine), "default")
 	if err := p.DrainNode(context.Background(), "gpu-node-1"); err != nil {
