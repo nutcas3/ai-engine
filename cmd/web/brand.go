@@ -8,7 +8,8 @@ type Brand struct {
 	Name    string // product name in the nav + <title>
 	Logo    string // short mark inside the logo square
 	Tagline string // small chip next to the name
-	Status  string // text inside the mint status pill
+	Status  string // text inside the status pill
+	Theme   string // default UI theme: light | dark | brutalist
 }
 
 // LoadBrand reads white-label settings from the environment, falling back to
@@ -19,6 +20,7 @@ func LoadBrand() Brand {
 		Logo:    envOr("BRAND_LOGO", "AI"),
 		Tagline: envOr("BRAND_TAGLINE", "cloud·agnostic"),
 		Status:  envOr("BRAND_STATUS", "Control Plane Active"),
+		Theme:   envOr("BRAND_THEME", "light"),
 	}
 }
 

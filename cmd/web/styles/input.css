@@ -60,6 +60,26 @@
 	--shadow-subtle-2: lab(2.75381 0 0) 0px 0px 0px 0px;
 }
 
+[data-theme="dark"] {
+	--color-canvas: #0a0a0a;
+	--color-paper: #141414;
+	--color-surface-alt: #1a1a1a;
+	--color-ink: #fafafa;
+	--color-ink-soft: #e5e5e5;
+	--color-mid-gray: #8a8a8a;
+	--color-hairline: #262626;
+}
+
+[data-theme="brutalist"] {
+	--color-canvas: #e5e5e5;
+	--color-paper: #ffffff;
+	--color-surface-alt: #f3f3f3;
+	--color-ink: #000000;
+	--color-ink-soft: #171717;
+	--color-mid-gray: #979797;
+	--color-hairline: #c6c6c6;
+}
+
 /* Collapsed sidebar — icon-only rail */
 .sidebar-collapsed #sidebar {
 	width: 4rem;
