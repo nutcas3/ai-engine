@@ -35,8 +35,8 @@ type CAPI struct {
 }
 
 // NewCAPI builds a provider for key bound to the management-cluster client.
-// ready reports whether the CAPI CRDs were verified on the cluster — a
-// resolvable kubeconfig alone is not enough to provision.
+// ready reports whether the core CAPI CRDs AND this provider's own infra
+// CRDs were verified — a resolvable kubeconfig alone is not enough.
 func NewCAPI(key, display string, dyn dynamic.Interface, ns string, ready bool) *CAPI {
 	return &CAPI{key: key, display: display, dyn: dyn, ns: ns, ready: ready}
 }
@@ -45,13 +45,13 @@ func (c *CAPI) Key() string     { return c.key }
 func (c *CAPI) Display() string { return c.display }
 func (c *CAPI) Ready() bool     { return c.dyn != nil && c.ready }
 
-// probeCAPI verifies the cluster actually serves the CAPI cluster.x-k8s.io
-// resources — the difference between "kubeconfig resolved" and "CAPI
-// installed". A short-timeout List on either API version is enough.
-func probeCAPI(ctx context.Context, dyn dynamic.Interface) bool {
+// probeResource checks whether one GVR is served, trying both API versions
+// with a short timeout. Used for the CAPI core check and each provider's own
+// infra CRDs.
+func probeResource(ctx context.Context, dyn dynamic.Interface, group, resource string) bool {
 	for _, v := range capiVersions {
 		tctx, cancel := context.WithTimeout(ctx, 4*time.Second)
-		_, err := dyn.Resource(gvr("cluster.x-k8s.io", "clusters", v)).
+		_, err := dyn.Resource(gvr(group, resource, v)).
 			Namespace("").List(tctx, metav1.ListOptions{Limit: 1})
 		cancel()
 		if err == nil {
@@ -59,6 +59,21 @@ func probeCAPI(ctx context.Context, dyn dynamic.Interface) bool {
 		}
 	}
 	return false
+}
+
+// probeProvider reports whether this adapter can actually provision: the CAPI
+// core CRDs AND the provider's own infra cluster CRD must be served (CAPA
+// installs awsclusters, CAPG gcpclusters, CAPZ azureclusters, CAPM3
+// metal3clusters, NICo nicoclusters — overridable via clusterResource).
+func (c *CAPI) probeProvider(ctx context.Context) bool {
+	if c.dyn == nil {
+		return false
+	}
+	if !probeResource(ctx, c.dyn, "cluster.x-k8s.io", "clusters") {
+		return false
+	}
+	return probeResource(ctx, c.dyn, "infrastructure.cluster.x-k8s.io",
+		infraClusterResourceName(c.key, nil))
 }
 
 // capiClientFromEnv loads a dynamic client for the CAPI management cluster.
