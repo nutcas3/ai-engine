@@ -112,7 +112,7 @@ func infraClusterResourceName(kind string, cfg map[string]string) string {
 // infraCluster builds the provider <Kind>Cluster object. Spec fields come
 // from config minus adapter-reserved keys (region, sshKeyName, zone, …).
 func (c *CAPI) infraCluster(name, ns string, cfg map[string]string) *unstructuredObj {
-	inner := map[string]interface{}{}
+	inner := map[string]any{}
 	for k, v := range cfg {
 		switch k {
 		case "clusterName", "namespace", "templateKind", "templateResource",
@@ -128,21 +128,21 @@ func (c *CAPI) infraCluster(name, ns string, cfg map[string]string) *unstructure
 // kubeadmControlPlane builds the controlplane.cluster.x-k8s.io object
 // referencing the CP MachineTemplate built earlier at infraVer.
 func kubeadmControlPlane(name, ns, k8s string, replicas int64, infraKind, infraVer string) *unstructuredObj {
-	return newObj("KubeadmControlPlane", name+"-kcp", ns, map[string]interface{}{
+	return newObj("KubeadmControlPlane", name+"-kcp", ns, map[string]any{
 		"replicas": replicas,
 		"version":  k8s,
-		"machineTemplate": map[string]interface{}{
-			"infrastructureRef": map[string]interface{}{
+		"machineTemplate": map[string]any{
+			"infrastructureRef": map[string]any{
 				"apiVersion": "infrastructure.cluster.x-k8s.io/" + infraVer,
 				"kind":       infraKind,
 				"name":       name + "-cp-mt",
 				"namespace":  ns,
 			},
 		},
-		"kubeadmConfigSpec": map[string]interface{}{
-			"initConfiguration": map[string]interface{}{
-				"nodeRegistration": map[string]interface{}{
-					"kubeletExtraArgs": map[string]interface{}{"cloud-provider": "external"},
+		"kubeadmConfigSpec": map[string]any{
+			"initConfiguration": map[string]any{
+				"nodeRegistration": map[string]any{
+					"kubeletExtraArgs": map[string]any{"cloud-provider": "external"},
 				},
 			},
 		},
@@ -151,23 +151,23 @@ func kubeadmControlPlane(name, ns, k8s string, replicas int64, infraKind, infraV
 
 // clusterObj builds the top-level cluster.x-k8s.io Cluster wiring the infra
 // cluster and KubeadmControlPlane refs at the versions they were applied.
-func clusterObj(name, ns, k8s, tier, infraClusterKind, kcpVer, infraVer string) *unstructuredObj {
-	o := newObj("Cluster", name, ns, map[string]interface{}{
-		"infrastructureRef": map[string]interface{}{
+func clusterObj(name, ns, tier, infraClusterKind, kcpVer, infraVer string) *unstructuredObj {
+	o := newObj("Cluster", name, ns, map[string]any{
+		"infrastructureRef": map[string]any{
 			"apiVersion": "infrastructure.cluster.x-k8s.io/" + infraVer,
 			"kind":       infraClusterKind,
 			"name":       name,
 			"namespace":  ns,
 		},
-		"controlPlaneRef": map[string]interface{}{
+		"controlPlaneRef": map[string]any{
 			"apiVersion": "controlplane.cluster.x-k8s.io/" + kcpVer,
 			"kind":       "KubeadmControlPlane",
 			"name":       name + "-kcp",
 			"namespace":  ns,
 		},
-		"clusterNetwork": map[string]interface{}{
-			"pods":     map[string]interface{}{"cidrBlocks": []interface{}{"192.168.0.0/16"}},
-			"services": map[string]interface{}{"cidrBlocks": []interface{}{"10.96.0.0/12"}},
+		"clusterNetwork": map[string]any{
+			"pods":     map[string]any{"cidrBlocks": []any{"192.168.0.0/16"}},
+			"services": map[string]any{"cidrBlocks": []any{"10.96.0.0/12"}},
 		},
 	})
 	o.obj.SetLabels(map[string]string{"ai-engine.io/tier": tier})
@@ -197,7 +197,7 @@ func (c *CAPI) infraTemplate(spec api.NodePoolCreateSpec, ns string) (*unstructu
 }
 
 // kubeadmConfigTemplate builds the bootstrap config for pool machines.
-func kubeadmConfigTemplate(spec api.NodePoolCreateSpec, ns, k8s string) *unstructuredObj {
+func kubeadmConfigTemplate(spec api.NodePoolCreateSpec, ns string) *unstructuredObj {
 	return newObj("KubeadmConfigTemplate", spec.Name+"-kubeadm", ns, map[string]any{
 		"template": map[string]any{
 			"spec": map[string]any{
