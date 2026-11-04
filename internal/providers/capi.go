@@ -9,8 +9,8 @@ import (
 
 	"ai-engine/internal/api"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -99,10 +99,7 @@ func (c *CAPI) ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpe
 	if ns == "" {
 		ns = c.ns
 	}
-	count := spec.DesiredNodeCount
-	if count < 1 {
-		count = 1
-	}
+	count := max(spec.DesiredNodeCount, 1)
 	k8s := spec.KubernetesVersion
 	if k8s == "" {
 		k8s = "1.33.4"

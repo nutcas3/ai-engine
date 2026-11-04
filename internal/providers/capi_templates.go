@@ -12,10 +12,10 @@ type unstructuredObj struct {
 	obj *unstructured.Unstructured
 }
 
-func newObj(kind, name, ns string, spec map[string]interface{}) *unstructuredObj {
-	return &unstructuredObj{obj: &unstructured.Unstructured{Object: map[string]interface{}{
+func newObj(kind, name, ns string, spec map[string]any) *unstructuredObj {
+	return &unstructuredObj{obj: &unstructured.Unstructured{Object: map[string]any{
 		"kind":     kind,
-		"metadata": map[string]interface{}{"name": name, "namespace": ns},
+		"metadata": map[string]any{"name": name, "namespace": ns},
 		"spec":     spec,
 	}}}
 }
@@ -70,7 +70,7 @@ func infraResourceName(kind string, cfg map[string]string) string {
 // parameters (instanceType, region, zone, imageID, hostSelector, …) through
 // the create request without the adapter hardcoding them.
 func (c *CAPI) infraTemplate(spec api.NodePoolCreateSpec, ns string) (*unstructuredObj, error) {
-	inner := map[string]interface{}{}
+	inner := map[string]any{}
 	for k, v := range spec.Provider.Config {
 		switch k {
 		case "clusterName", "namespace", "templateKind", "templateResource":
@@ -84,17 +84,17 @@ func (c *CAPI) infraTemplate(spec api.NodePoolCreateSpec, ns string) (*unstructu
 		inner["gpuModel"] = spec.GPUModel
 	}
 	return newObj(c.templateKind(spec.Provider.Config), spec.Name+"-mt", ns,
-		map[string]interface{}{"template": map[string]interface{}{"spec": inner}}), nil
+		map[string]any{"template": map[string]any{"spec": inner}}), nil
 }
 
 // kubeadmConfigTemplate builds the bootstrap config for pool machines.
 func kubeadmConfigTemplate(spec api.NodePoolCreateSpec, ns, k8s string) *unstructuredObj {
-	return newObj("KubeadmConfigTemplate", spec.Name+"-kubeadm", ns, map[string]interface{}{
-		"template": map[string]interface{}{
-			"spec": map[string]interface{}{
-				"joinConfiguration": map[string]interface{}{
-					"nodeRegistration": map[string]interface{}{
-						"kubeletExtraArgs": map[string]interface{}{
+	return newObj("KubeadmConfigTemplate", spec.Name+"-kubeadm", ns, map[string]any{
+		"template": map[string]any{
+			"spec": map[string]any{
+				"joinConfiguration": map[string]any{
+					"nodeRegistration": map[string]any{
+						"kubeletExtraArgs": map[string]any{
 							"cloud-provider": "external",
 						},
 					},
@@ -107,31 +107,31 @@ func kubeadmConfigTemplate(spec api.NodePoolCreateSpec, ns, k8s string) *unstruc
 // machineDeployment builds the CAPI MachineDeployment wiring the infra
 // template + kubeadm bootstrap to the target cluster.
 func machineDeployment(spec api.NodePoolCreateSpec, ns, clusterName string, replicas int, k8s, infraKind string) *unstructuredObj {
-	labels := map[string]interface{}{
-		"cluster.x-k8s.io/cluster-name": clusterName,
+	labels := map[string]any{
+		"cluster.x-k8s.io/cluster-name":    clusterName,
 		"cluster.x-k8s.io/deployment-name": spec.Name,
-		"pool": spec.Name,
+		"pool":                             spec.Name,
 	}
-	return newObj("MachineDeployment", spec.Name, ns, map[string]interface{}{
+	return newObj("MachineDeployment", spec.Name, ns, map[string]any{
 		"clusterName": clusterName,
 		"replicas":    int64(replicas),
-		"selector": map[string]interface{}{
-			"matchLabels": map[string]interface{}{"pool": spec.Name},
+		"selector": map[string]any{
+			"matchLabels": map[string]any{"pool": spec.Name},
 		},
-		"template": map[string]interface{}{
-			"metadata": map[string]interface{}{"labels": labels},
-			"spec": map[string]interface{}{
+		"template": map[string]any{
+			"metadata": map[string]any{"labels": labels},
+			"spec": map[string]any{
 				"clusterName": clusterName,
 				"version":     k8s,
-				"bootstrap": map[string]interface{}{
-					"configRef": map[string]interface{}{
+				"bootstrap": map[string]any{
+					"configRef": map[string]any{
 						"apiVersion": "bootstrap.cluster.x-k8s.io/v1beta1",
 						"kind":       "KubeadmConfigTemplate",
 						"name":       spec.Name + "-kubeadm",
 						"namespace":  ns,
 					},
 				},
-				"infrastructureRef": map[string]interface{}{
+				"infrastructureRef": map[string]any{
 					"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 					"kind":       infraKind,
 					"name":       spec.Name + "-mt",
@@ -141,4 +141,3 @@ func machineDeployment(spec api.NodePoolCreateSpec, ns, clusterName string, repl
 		},
 	})
 }
-
