@@ -1,4 +1,4 @@
-FROM golang:1.24.4-alpine AS build
+FROM golang:1.27.3-alpine AS build
 RUN apk add --no-cache curl libstdc++ libgcc
 
 WORKDIR /app
@@ -8,19 +8,17 @@ RUN go mod download
 
 ARG TARGETARCH
 COPY . .
-RUN go install github.com/a-h/templ/cmd/templ@latest && \
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1100 && \
     templ generate && \
-    arch=$${TARGETARCH:-amd64}; [ "$$arch" = "amd64" ] && arch=x64; \
-    curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-$$arch-musl" -o tailwindcss && \
+    case "$TARGETARCH" in amd64) tw_arch=x64 ;; arm64) tw_arch=arm64 ;; *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac && \
+    curl -fsSL "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.4/tailwindcss-linux-$tw_arch-musl" -o tailwindcss && \
     chmod +x tailwindcss && \
     ./tailwindcss -i cmd/web/styles/input.css -o cmd/web/assets/css/output.css
 
-RUN go build -o main cmd/api/main.go
+RUN go build -o main ./cmd/api
 
 FROM alpine:3.20.1 AS prod
 WORKDIR /app
 COPY --from=build /app/main /app/main
 EXPOSE ${PORT}
 CMD ["./main"]
-
-

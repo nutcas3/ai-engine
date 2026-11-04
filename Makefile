@@ -1,39 +1,46 @@
-# Simple Makefile for a Go project
+TEMPL_VERSION ?= v0.3.1100
+TAILWIND_VERSION ?= v4.3.4
 
-# Build the application
-all: build test
+all: verify
+
 templ-install:
 	@if ! command -v templ > /dev/null; then \
-		read -p "Go's 'templ' is not installed on your machine. Do you want to install it? [Y/n] " choice; \
-		if [ "$$choice" != "n" ] && [ "$$choice" != "N" ]; then \
-			go install github.com/a-h/templ/cmd/templ@latest; \
-			if [ ! -x "$$(command -v templ)" ]; then \
-				echo "templ installation failed. Exiting..."; \
-				exit 1; \
-			fi; \
-		else \
-			echo "You chose not to install templ. Exiting..."; \
-			exit 1; \
-		fi; \
+		go install github.com/a-h/templ/cmd/templ@$(TEMPL_VERSION); \
 	fi
+
 tailwind-install:
-	@if [ ! -f tailwindcss ]; then \
-		arch=$$(uname -m); [ "$$arch" = "x86_64" ] && arch=x64; \
-		curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-macos-$$arch" -o tailwindcss; \
+	@if [ ! -x ./tailwindcss ]; then \
+		os=$$(uname -s); arch=$$(uname -m); \
+		case "$$os/$$arch" in \
+			Darwin/arm64) asset=macos-arm64 ;; \
+			Darwin/x86_64) asset=macos-x64 ;; \
+			Linux/aarch64|Linux/arm64) asset=linux-arm64 ;; \
+			Linux/x86_64) asset=linux-x64 ;; \
+			*) echo "Unsupported Tailwind platform: $$os/$$arch" >&2; exit 1 ;; \
+		esac; \
+		curl -fsSL "https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-$$asset" -o tailwindcss; \
+		chmod +x tailwindcss; \
 	fi
-	@chmod +x tailwindcss
 
-build: tailwind-install templ-install
-	@echo "Building..."
+generate: templ-install
 	@templ generate
-	@./tailwindcss -i cmd/web/styles/input.css -o cmd/web/assets/css/output.css
-	@go build -o main cmd/api/main.go
 
-# Run the application (regenerates templ code and CSS first)
-run: tailwind-install templ-install
-	@templ generate
+css: tailwind-install
 	@./tailwindcss -i cmd/web/styles/input.css -o cmd/web/assets/css/output.css
+
+assets: generate css
+
+build: assets
+	@go build -o main ./cmd/api
+
+verify: assets
+	@go test ./...
+	@go vet ./...
+	@go build ./...
+
+run: assets
 	@go run cmd/api/main.go
+
 # Create DB container
 docker-run:
 	@if docker compose up --build 2>/dev/null; then \
@@ -79,4 +86,4 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test clean watch tailwind-install templ-install
+.PHONY: all assets build clean css generate run test verify watch tailwind-install templ-install
