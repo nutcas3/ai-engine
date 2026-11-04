@@ -90,9 +90,9 @@ templ Base(title, section string, brand Brand) {
 					@navLink("/finops", "FinOps", "finops", section)
 					@navSection("SYSTEM")
 					@navLink("/providers", "Providers", "providers", section)
-					@navLink("/settings", "Settings", "settings", section)
 				</nav>
-				<div class="p-3 border-t border-hairline">
+				<div class="p-3 border-t border-hairline space-y-2">
+					@navLink("/settings", "Settings", "settings", section)
 					<span class="nav-status flex items-center gap-1.5 text-caption font-geist-mono text-ink bg-surface-alt border border-hairline px-2.5 py-1 rounded-full w-fit">
 						<span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse shrink-0"></span>
 						<span class="nav-label">{ brand.Status }</span>
