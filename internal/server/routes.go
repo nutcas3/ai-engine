@@ -29,6 +29,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /inference", s.InferencePageHandler)
 	mux.HandleFunc("GET /finops", s.FinOpsPageHandler)
 	mux.HandleFunc("GET /providers", s.ProvidersPageHandler)
+	mux.HandleFunc("GET /settings", s.SettingsPageHandler)
 	mux.HandleFunc("GET /health", s.HealthHandler)
 	mux.HandleFunc("GET /api/telemetry/stream", s.TelemetryStreamHandler)
 	mux.HandleFunc("GET /api/clusters/provision", s.ProvisionModalHandler)
@@ -226,6 +227,19 @@ func (s *Server) InferencePageHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) ProvidersPageHandler(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(web.ProvidersPage(providers.List(), s.brand)).ServeHTTP(w, r)
+}
+
+func (s *Server) SettingsPageHandler(w http.ResponseWriter, r *http.Request) {
+	vars := map[string]string{
+		"BRAND_NAME": s.brand.Name, "BRAND_LOGO": s.brand.Logo,
+		"BRAND_TAGLINE": s.brand.Tagline, "BRAND_STATUS": s.brand.Status,
+		"BRAND_THEME": s.brand.Theme,
+	}
+	env := map[string]string{}
+	for k := range vars {
+		env[k] = "env: " + k
+	}
+	templ.Handler(web.SettingsPage(s.brand, vars, env, s.brand.Theme)).ServeHTTP(w, r)
 }
 
 // gpuHourlyRate estimates list price per GPU-hour by provider, used until

@@ -242,6 +242,61 @@ templ EndpointRow(e api.InferenceEndpoint) {
 	</tr>
 }
 
+// --- Settings ---
+
+templ SettingsPage(brand Brand, brandVars map[string]string, brandEnv map[string]string, brandTheme string) {
+	@Base("Settings", "settings", brand) {
+		@pageHead("SYSTEM / SETTINGS", "Settings", "Appearance and white-label configuration for this control plane.")
+		<div class="bg-paper rounded-xl shadow-subtle p-5 mb-4">
+			<h3 class="text-body font-semibold text-ink mb-1">Appearance</h3>
+			<p class="text-caption text-mid-gray mb-4">Theme is saved locally in this browser. Server default: <span class="font-geist-mono text-ink">{ brandTheme }</span> (set via BRAND_THEME).</p>
+			<div class="flex gap-3" id="theme-picker">
+				for _, t := range []string{"light", "dark", "brutalist"} {
+					<button data-theme-choice={ t } class="theme-btn px-4 py-2 rounded-md border border-hairline text-body font-medium capitalize transition-colors">
+						{ t }
+					</button>
+				}
+			</div>
+			<script>
+				(function () {
+					var current = localStorage.getItem("ui-theme") || document.documentElement.dataset.theme;
+					function paint() {
+						document.querySelectorAll(".theme-btn").forEach(function (b) {
+							var active = b.dataset.themeChoice === current;
+							b.classList.toggle("bg-ink", active);
+							b.classList.toggle("text-paper", active);
+							b.classList.toggle("text-ink", !active);
+						});
+					}
+					document.querySelectorAll(".theme-btn").forEach(function (b) {
+						b.addEventListener("click", function () {
+							current = b.dataset.themeChoice;
+							document.documentElement.dataset.theme = current;
+							localStorage.setItem("ui-theme", current);
+							paint();
+						});
+					});
+					paint();
+				})();
+			</script>
+		</div>
+		<div class="bg-paper rounded-xl shadow-subtle p-5 mb-4">
+			<h3 class="text-body font-semibold text-ink mb-4">White-label</h3>
+			<table class="w-full text-body">
+				<tbody class="divide-y divide-hairline">
+					for k, v := range brandVars {
+						<tr>
+							<td class="py-2 text-caption font-geist-mono text-mid-gray w-48">{ k }</td>
+							<td class="py-2 font-geist-mono text-ink">{ v }</td>
+							<td class="py-2 text-caption font-geist-mono text-mid-gray text-right">{ brandEnv[k] }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
 // --- FinOps ---
 
 type FinRow struct {
