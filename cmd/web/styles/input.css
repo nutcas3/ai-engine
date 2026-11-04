@@ -1,1 +1,21 @@
-@import "tailwindcss"
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+	/* Colors — brutalist editorial palette */
+	--color-carbon-black: #000000;
+	--color-paper-white: #ffffff;
+	--color-warm-canvas: #e5e5e5;
+	--color-mist-gray: #f3f3f3;
+	--color-ash: #c6c6c6;
+	--color-smoke: #979797;
+	--color-ink: #444444;
+	--color-graphite: #2f2f2f;
+	--color-mint-chip: #d1ffca;
+	--color-voltage-yellow: #fff100;
+
+	/* Typography */
+	--font-display: 'Anton', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+	--font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
