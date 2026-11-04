@@ -15,9 +15,10 @@ import (
 
 // Manager holds the cluster hierarchy in memory.
 type Manager struct {
-	mu       sync.RWMutex
-	clusters []api.Cluster
-	releases []api.Release
+	mu        sync.RWMutex
+	clusters  []api.Cluster
+	releases  []api.Release
+	endpoints []api.InferenceEndpoint
 }
 
 // NewManager seeds one fleet cluster with three provider-backed pools, so the
@@ -79,6 +80,11 @@ func NewManager() *Manager {
 				"containerToolkit": "1.20.1", "dcgmExporter": "4.8.4", "draDriver": "0.5.1",
 			},
 		}},
+		endpoints: []api.InferenceEndpoint{{
+			ID: "ep-llama-chat", Name: "llama-chat", Model: "llama-3-70b-chat",
+			Engine: "vllm", PoolID: "pool-aws", Replicas: 2,
+			Status: "Ready", CreatedAt: time.Now(),
+		}},
 	}
 }
 
@@ -89,6 +95,32 @@ func (m *Manager) Clusters() []api.Cluster {
 	cp := make([]api.Cluster, len(m.clusters))
 	copy(cp, m.clusters)
 	return cp
+}
+
+// Endpoints returns the registered inference endpoints.
+func (m *Manager) Endpoints() []api.InferenceEndpoint {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	cp := make([]api.InferenceEndpoint, len(m.endpoints))
+	copy(cp, m.endpoints)
+	return cp
+}
+
+// AddEndpoint registers a new inference endpoint.
+func (m *Manager) AddEndpoint(e api.InferenceEndpoint) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.endpoints = append(m.endpoints, e)
+}
+
+// PoolByID returns the pool matching id, for endpoint detail joins.
+func (m *Manager) PoolByID(id string) (api.NodePool, bool) {
+	for _, p := range m.NodePools() {
+		if p.ID == id || p.Name == id {
+			return p, true
+		}
+	}
+	return api.NodePool{}, false
 }
 
 // Releases returns the pinned release list.

@@ -6,7 +6,7 @@ import (
 )
 
 templ Dashboard(nodes []api.Node, brand Brand) {
-	@Base("Telemetry Dashboard", brand) {
+	@Base("Telemetry Dashboard", "overview", brand) {
 		<div class="space-y-8 pt-4">
 			<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
 				<div>

@@ -1,0 +1,278 @@
+package web
+
+import (
+	"fmt"
+
+	"ai-engine/internal/api"
+	"ai-engine/internal/providers"
+)
+
+func condsText(c []api.Condition) string {
+	if len(c) == 0 {
+		return "—"
+	}
+	return c[0].Type
+}
+
+templ pageHead(kicker, title, sub string) {
+	<div class="mb-6">
+		<p class="text-caption font-geist-mono text-mid-gray mb-1.5">{ kicker }</p>
+		<h1 class="text-heading-lg font-semibold tracking-tight text-ink">{ title }</h1>
+		<p class="text-body text-mid-gray mt-1">{ sub }</p>
+	</div>
+}
+
+templ tableWrap(headers []string) {
+	<div class="bg-paper rounded-xl shadow-subtle overflow-hidden">
+		<table class="w-full text-body">
+			<thead>
+				<tr class="border-b border-hairline text-left">
+					for _, h := range headers {
+						<th class="px-4 py-2.5 text-caption font-geist-mono font-medium text-mid-gray">{ h }</th>
+					}
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-hairline">
+				{ children... }
+			</tbody>
+		</table>
+	</div>
+}
+
+templ statusChip(s string) {
+	if s == "Ready" || s == "True" {
+		<span class="px-2 py-0.5 rounded-full text-caption font-geist-mono bg-surface-alt border border-hairline text-ink">{ s }</span>
+	} else if s == "Degraded" || s == "Provisioning" {
+		<span class="px-2 py-0.5 rounded-full text-caption font-geist-mono bg-ember/10 text-ember border border-ember/20">{ s }</span>
+	} else {
+		<span class="px-2 py-0.5 rounded-full text-caption font-geist-mono bg-ink text-paper">{ s }</span>
+	}
+}
+
+// --- Clusters ---
+
+templ ClustersPage(clusters []api.Cluster, brand Brand) {
+	@Base("Clusters", "clusters", brand) {
+		@pageHead("FLEET / CLUSTERS", "Clusters", "Managed Kubernetes clusters and their provider payloads.")
+		for _, c := range clusters {
+			<div class="bg-paper rounded-xl shadow-subtle p-5 mb-4">
+				<div class="flex items-center justify-between mb-4">
+					<div>
+						<h3 class="text-subheading font-semibold tracking-tight text-ink">{ c.Name }</h3>
+						<p class="text-caption font-geist-mono text-mid-gray mt-0.5">{ c.ID } · created { c.CreatedAt.Format("2006-01-02") }</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="px-2.5 py-1 rounded-md text-caption font-geist-mono bg-ink text-paper">{ c.Tier }</span>
+						@statusChip(condsText(c.Conditions))
+					</div>
+				</div>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-caption font-geist-mono text-mid-gray">
+					<div>K8S <span class="text-ink block mt-0.5">{ c.ControlPlaneKubernetesVersion }</span></div>
+					<div>CNI <span class="text-ink block mt-0.5">{ c.CNIPlugin }</span></div>
+					<div>PROVIDER <span class="text-ink block mt-0.5">{ c.Provider.Kind }</span></div>
+					<div>ETCD ENC <span class="text-ink block mt-0.5">{ fmt.Sprintf("%v", c.EtcdEncrypted) }</span></div>
+				</div>
+				<div class="mt-4 pt-4 border-t border-hairline text-caption font-geist-mono text-mid-gray">
+					{ fmt.Sprintf("%d node pools", len(c.NodePools)) } · pod { c.Network.PodCIDR } · svc { c.Network.ServiceCIDR }
+				</div>
+			</div>
+		}
+	}
+}
+
+// --- Node Pools ---
+
+templ NodePoolsPage(pools []api.NodePool, brand Brand) {
+	@Base("Node Pools", "nodepools", brand) {
+		@pageHead("FLEET / NODE POOLS", "Node Pools", "Worker pools across clusters — one provider payload each, fixed at creation.")
+		@tableWrap([]string{"POOL", "PROVIDER", "K8S", "DESIRED", "SETS", "STATUS"}) {
+			for _, p := range pools {
+				<tr class="text-body">
+					<td class="px-4 py-2.5 font-medium text-ink">{ p.Name }<div class="text-caption font-geist-mono text-mid-gray">{ p.ID }</div></td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ p.Provider.Kind }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ p.KubernetesVersion }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", p.DesiredNodeCount) }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", len(p.NodeSets)) }</td>
+					<td class="px-4 py-2.5">@statusChip(condsText(p.Conditions))</td>
+				</tr>
+			}
+		}
+	}
+}
+
+// --- Nodes ---
+
+templ NodesPage(nodes []api.Node, brand Brand) {
+	@Base("Nodes", "nodes", brand) {
+		@pageHead("FLEET / NODES", "Nodes", "Every machine across pools and node sets, with accelerator telemetry.")
+		@tableWrap([]string{"NODE", "POOL", "GPU", "VRAM", "LOAD", "TEMP", "STATUS", ""}) {
+			for _, n := range nodes {
+				<tr class="text-body">
+					<td class="px-4 py-2.5 font-medium text-ink">{ n.Name }<div class="text-caption font-geist-mono text-mid-gray">{ n.Provider }</div></td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ n.NodePoolID }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">
+						if n.GPU != nil {
+							{ n.GPU.Model }
+						} else {
+							—
+						}
+					</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">
+						if n.GPU != nil {
+							{ fmt.Sprintf("%.0f/%.0fG", n.GPU.VRAMUsedGB, n.GPU.VRAMTotalGB) }
+						} else {
+							—
+						}
+					</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">
+						if n.GPU != nil {
+							{ fmt.Sprintf("%d%%", n.GPU.Utilization) }
+						} else {
+							—
+						}
+					</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">
+						if n.GPU != nil {
+							{ fmt.Sprintf("%d°C", n.GPU.TempC) }
+						} else {
+							—
+						}
+					</td>
+					<td class="px-4 py-2.5">@statusChip(n.Status())</td>
+					<td class="px-4 py-2.5 text-right">
+						if n.Status() == "Degraded" {
+							<button hx-post={ fmt.Sprintf("/api/nodes/%s/drain", n.ID) } hx-swap="none" hx-on::after-request="location.reload()" class="text-caption font-geist-mono text-ember hover:underline">DRAIN</button>
+						}
+					</td>
+				</tr>
+			}
+		}
+	}
+}
+
+// --- Releases ---
+
+templ ReleasesPage(releases []api.Release, brand Brand) {
+	@Base("Releases", "releases", brand) {
+		@pageHead("FLEET / RELEASES", "Releases", "Pinned component bundles rolled out to node pools and control planes.")
+		for _, r := range releases {
+			<div class="bg-paper rounded-xl shadow-subtle p-5 mb-4">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-subheading font-semibold tracking-tight text-ink">{ r.Name }</h3>
+					<span class="text-caption font-geist-mono text-mid-gray">K8S { r.KubernetesVersion }</span>
+				</div>
+				<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+					for k, v := range r.Components {
+						<div class="bg-surface-alt border border-hairline rounded-md px-3 py-2">
+							<div class="text-caption font-geist-mono text-mid-gray">{ k }</div>
+							<div class="text-body font-geist-mono text-ink mt-0.5">{ v }</div>
+						</div>
+					}
+				</div>
+			</div>
+		}
+	}
+}
+
+// --- Providers ---
+
+templ ProvidersPage(providers []providers.Provider, brand Brand) {
+	@Base("Providers", "providers", brand) {
+		@pageHead("SYSTEM / PROVIDERS", "Infrastructure Adapters", "CAPI infrastructure providers registered with the control plane.")
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			for _, p := range providers {
+				<div class="bg-paper rounded-xl shadow-subtle p-5 flex items-start justify-between">
+					<div>
+						<h3 class="text-body font-semibold text-ink">{ p.Display() }</h3>
+						<p class="text-caption font-geist-mono text-mid-gray mt-0.5">key: { p.Key() }</p>
+					</div>
+					if p.Ready() {
+						<span class="px-2.5 py-1 rounded-full text-caption font-geist-mono bg-surface-alt border border-hairline text-ink">READY</span>
+					} else {
+						<span class="px-2.5 py-1 rounded-full text-caption font-geist-mono text-mid-gray border border-hairline">NEEDS CONFIG</span>
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+// --- Inference ---
+
+templ InferencePage(endpoints []api.InferenceEndpoint, pools []api.NodePool, brand Brand) {
+	@Base("Inference", "inference", brand) {
+		@pageHead("WORKLOADS / INFERENCE", "Model Endpoints", "vLLM / Triton / KServe endpoints bound to GPU node pools.")
+		<div class="bg-paper rounded-xl shadow-subtle p-5 mb-6">
+			<h3 class="text-body font-semibold text-ink mb-4">New Endpoint</h3>
+			<form hx-post="/api/inference" hx-target="#endpoints-table" hx-swap="beforeend" class="grid grid-cols-2 md:grid-cols-5 gap-3">
+				<input name="name" required placeholder="endpoint name" class="bg-surface-alt border border-hairline rounded-md px-3 py-2 text-body text-ink focus:outline-none focus:ring-2 focus:ring-ink"/>
+				<input name="model" required placeholder="model (e.g. llama-3-70b)" class="bg-surface-alt border border-hairline rounded-md px-3 py-2 text-body text-ink focus:outline-none focus:ring-2 focus:ring-ink"/>
+				<select name="engine" class="bg-surface-alt border border-hairline rounded-md px-3 py-2 text-body text-ink focus:outline-none focus:ring-2 focus:ring-ink">
+					<option value="vllm">vLLM</option>
+					<option value="triton">Triton</option>
+					<option value="kserve">KServe LLMIsvc</option>
+					<option value="kubeai">KubeAI</option>
+				</select>
+				<select name="pool" class="bg-surface-alt border border-hairline rounded-md px-3 py-2 text-body text-ink focus:outline-none focus:ring-2 focus:ring-ink">
+					for _, p := range pools {
+						<option value={ p.ID }>{ p.Name }</option>
+					}
+				</select>
+				<button type="submit" class="bg-ink hover:bg-ink-soft text-paper text-body font-medium rounded-md transition-colors">Deploy</button>
+			</form>
+		</div>
+		@tableWrap([]string{"ENDPOINT", "MODEL", "ENGINE", "POOL", "REPLICAS", "STATUS"}) {
+			<tbody id="endpoints-table" class="contents">
+				for _, e := range endpoints {
+					@EndpointRow(e)
+				}
+			</tbody>
+		}
+	}
+}
+
+templ EndpointRow(e api.InferenceEndpoint) {
+	<tr class="text-body">
+		<td class="px-4 py-2.5 font-medium text-ink">{ e.Name }<div class="text-caption font-geist-mono text-mid-gray">{ e.ID }</div></td>
+		<td class="px-4 py-2.5 font-geist-mono text-caption">{ e.Model }</td>
+		<td class="px-4 py-2.5 font-geist-mono text-caption">{ e.Engine }</td>
+		<td class="px-4 py-2.5 font-geist-mono text-caption">{ e.PoolID }</td>
+		<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", e.Replicas) }</td>
+		<td class="px-4 py-2.5">@statusChip(e.Status)</td>
+	</tr>
+}
+
+// --- FinOps ---
+
+type FinRow struct {
+	Label    string
+	Provider string
+	GPUs     int
+	Model    string
+	RateHr   float64
+	CostDay  float64
+}
+
+templ FinOpsPage(rows []FinRow, total float64, brand Brand) {
+	@Base("FinOps", "finops", brand) {
+		@pageHead("WORKLOADS / FINOPS", "Cost Overview", "Estimated GPU spend by pool — list rates, no committed-use discounts.")
+		@tableWrap([]string{"POOL", "PROVIDER", "GPUS", "MODEL", "$/GPU·HR", "$/DAY"}) {
+			for _, r := range rows {
+				<tr class="text-body">
+					<td class="px-4 py-2.5 font-medium text-ink">{ r.Label }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ r.Provider }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", r.GPUs) }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ r.Model }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%.2f", r.RateHr) }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%.2f", r.CostDay) }</td>
+				</tr>
+			}
+		}
+		<div class="mt-4 bg-paper rounded-xl shadow-subtle p-5 flex items-center justify-between">
+			<span class="text-caption font-geist-mono text-mid-gray">ESTIMATED DAILY SPEND</span>
+			<span class="text-heading-sm font-semibold tracking-tight text-ink">{ fmt.Sprintf("$%.2f", total) }</span>
+		</div>
+	}
+}
+
+
