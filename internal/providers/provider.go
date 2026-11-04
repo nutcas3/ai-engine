@@ -83,6 +83,10 @@ func init() {
 		{"azure", "Azure — CAPZ (AKS/VMs)"},
 		{"coreweave", "CoreWeave / Lambda (custom CAPI)"},
 		{"metal3", "Bare Metal — Metal3 (CAPM3)"},
+		{"tinkerbell", "Bare Metal — Tinkerbell (CAPT)"},
+		{"vsphere", "Self-hosted — vSphere (CAPV)"},
+		{"openstack", "Self-hosted — OpenStack (CAPO)"},
+		{"proxmox", "Self-hosted — Proxmox (CAPMOX)"},
 		{"nico", "Bare Metal — NICo (BlueField DPU sites)"},
 	} {
 		a := NewCAPI(p.key, p.display, dyn, ns, false)

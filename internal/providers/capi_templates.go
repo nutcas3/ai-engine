@@ -36,6 +36,14 @@ func (c *CAPI) templateKind(cfg map[string]string) string {
 		return "AzureMachineTemplate"
 	case "metal3":
 		return "Metal3MachineTemplate"
+	case "tinkerbell":
+		return "TinkerbellMachineTemplate"
+	case "vsphere":
+		return "VSphereMachineTemplate"
+	case "openstack":
+		return "OpenStackMachineTemplate"
+	case "proxmox":
+		return "ProxmoxMachineTemplate"
 	case "nico":
 		return "NICoMachineTemplate"
 	default:
@@ -58,6 +66,14 @@ func infraResourceName(kind string, cfg map[string]string) string {
 		return "azuremachinetemplates"
 	case "metal3":
 		return "metal3machinetemplates"
+	case "tinkerbell":
+		return "tinkerbellmachinetemplates"
+	case "vsphere":
+		return "vspheremachinetemplates"
+	case "openstack":
+		return "openstackmachinetemplates"
+	case "proxmox":
+		return "proxmoxmachinetemplates"
 	case "nico":
 		return "nicomachinetemplates"
 	default:
@@ -80,6 +96,14 @@ func (c *CAPI) infraClusterKind(cfg map[string]string) string {
 		return "AzureCluster"
 	case "metal3":
 		return "Metal3Cluster"
+	case "tinkerbell":
+		return "TinkerbellCluster"
+	case "vsphere":
+		return "VSphereCluster"
+	case "openstack":
+		return "OpenStackCluster"
+	case "proxmox":
+		return "ProxmoxCluster"
 	case "nico":
 		return "NICoCluster"
 	default:
@@ -102,6 +126,14 @@ func infraClusterResourceName(kind string, cfg map[string]string) string {
 		return "azureclusters"
 	case "metal3":
 		return "metal3clusters"
+	case "tinkerbell":
+		return "tinkerbellclusters"
+	case "vsphere":
+		return "vsphereclusters"
+	case "openstack":
+		return "openstackclusters"
+	case "proxmox":
+		return "proxmoxclusters"
 	case "nico":
 		return "nicoclusters"
 	default:

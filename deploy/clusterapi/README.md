@@ -10,6 +10,10 @@ definitions stay identical.
 | `gcp`     | CAPG     | `clusterctl init --infrastructure gcp`         |
 | `azure`   | CAPZ     | `clusterctl init --infrastructure azure`       |
 | `metal3`  | CAPM3    | `clusterctl init --infrastructure metal3`      |
+| `tinkerbell` | CAPT  | `clusterctl init --infrastructure tinkerbell`  |
+| `vsphere` | CAPV     | `clusterctl init --infrastructure vsphere`     |
+| `openstack` | CAPO  | `clusterctl init --infrastructure openstack`   |
+| `proxmox` | CAPMOX   | community provider (infrastructure.cluster.x-k8s.io group) |
 | `nico`    | CAPNICo  | NVKE management plane (BlueField DPU sites)    |
 | `coreweave` | custom | provider-specific CAPI/Terraform adapter       |
 
