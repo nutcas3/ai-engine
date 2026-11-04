@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/joho/godotenv/autoload"
 
+	"ai-engine/cmd/web"
 	"ai-engine/internal/fleet"
 	"ai-engine/internal/providers"
 	"ai-engine/internal/telemetry"
@@ -19,6 +20,7 @@ type Server struct {
 	port        int
 	fleet       *fleet.Manager
 	broadcaster *telemetry.Broadcaster
+	brand       web.Brand
 }
 
 func NewServer(ctx context.Context) *http.Server {
@@ -27,6 +29,7 @@ func NewServer(ctx context.Context) *http.Server {
 		port:        port,
 		fleet:       fleet.NewManager(),
 		broadcaster: telemetry.NewBroadcaster(),
+		brand:       web.LoadBrand(),
 	}
 
 	// Register the fleet-bound mock provider (CAPI stubs self-register in

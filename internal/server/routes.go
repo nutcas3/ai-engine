@@ -76,7 +76,7 @@ func isHTMX(r *http.Request) bool {
 }
 
 func (s *Server) DashboardHandler(w http.ResponseWriter, r *http.Request) {
-	templ.Handler(web.Dashboard(s.fleet.GPUNodes())).ServeHTTP(w, r)
+	templ.Handler(web.Dashboard(s.fleet.GPUNodes(), s.brand)).ServeHTTP(w, r)
 }
 
 func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {

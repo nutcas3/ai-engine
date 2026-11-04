@@ -56,3 +56,16 @@ docs/              architecture.md
 Generated with [go-blueprint](https://github.com/Melkeydev/go-blueprint)
 (stdlib backend, htmx, tailwind, docker, githubaction), then extended with
 the engine layers.
+
+## White-labeling
+
+The control plane rebrands via env vars (see `.env`):
+
+| Var | Default | Where it appears |
+|---|---|---|
+| `BRAND_NAME` | AI Engine Control Plane | nav title + `<title>` |
+| `BRAND_LOGO` | AI | logo square |
+| `BRAND_TAGLINE` | cloud·agnostic | chip next to the name |
+| `BRAND_STATUS` | Control Plane Active | mint status pill |
+
+Example: `BRAND_NAME="Acme GPU Cloud" BRAND_LOGO=AC ./main`
