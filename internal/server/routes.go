@@ -37,8 +37,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("POST /api/nodes/{id}/drain", s.DrainNodeHandler)
 	mux.HandleFunc("GET /api/releases", s.ListReleasesHandler)
 
-	fileServer := http.FileServer(http.FS(web.Files))
-	mux.Handle("/assets/", fileServer)
+	// Force revalidation so regenerated CSS/JS isn't served stale from
+	// browser cache during development.
+	assetHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		http.FileServer(http.FS(web.Files)).ServeHTTP(w, r)
+	})
+	mux.Handle("/assets/", assetHandler)
 
 	return s.corsMiddleware(mux)
 }
