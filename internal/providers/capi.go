@@ -31,18 +31,35 @@ type CAPI struct {
 	display string
 	dyn     dynamic.Interface
 	ns      string
+	ready   bool
 }
 
 // NewCAPI builds a provider for key bound to the management-cluster client.
-// A nil dyn means "not configured" — Ready() returns false and provisioning
-// fails fast with ErrNotConfigured.
-func NewCAPI(key, display string, dyn dynamic.Interface, ns string) *CAPI {
-	return &CAPI{key: key, display: display, dyn: dyn, ns: ns}
+// ready reports whether the CAPI CRDs were verified on the cluster — a
+// resolvable kubeconfig alone is not enough to provision.
+func NewCAPI(key, display string, dyn dynamic.Interface, ns string, ready bool) *CAPI {
+	return &CAPI{key: key, display: display, dyn: dyn, ns: ns, ready: ready}
 }
 
 func (c *CAPI) Key() string     { return c.key }
 func (c *CAPI) Display() string { return c.display }
-func (c *CAPI) Ready() bool     { return c.dyn != nil }
+func (c *CAPI) Ready() bool     { return c.dyn != nil && c.ready }
+
+// probeCAPI verifies the cluster actually serves the CAPI cluster.x-k8s.io
+// resources — the difference between "kubeconfig resolved" and "CAPI
+// installed". A short-timeout List on either API version is enough.
+func probeCAPI(ctx context.Context, dyn dynamic.Interface) bool {
+	for _, v := range capiVersions {
+		tctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		_, err := dyn.Resource(gvr("cluster.x-k8s.io", "clusters", v)).
+			Namespace("").List(tctx, metav1.ListOptions{Limit: 1})
+		cancel()
+		if err == nil {
+			return true
+		}
+	}
+	return false
+}
 
 // capiClientFromEnv loads a dynamic client for the CAPI management cluster.
 // Resolution order: in-cluster config, CAPI_KUBECONFIG, KUBECONFIG,
