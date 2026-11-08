@@ -113,6 +113,17 @@ func (m *Manager) AddEndpoint(e api.InferenceEndpoint) {
 	m.endpoints = append(m.endpoints, e)
 }
 
+
+// ClusterByID returns a copy of the named cluster.
+func (m *Manager) ClusterByID(id string) (api.Cluster, bool) {
+	for _, c := range m.Clusters() {
+		if c.ID == id {
+			return c, true
+		}
+	}
+	return api.Cluster{}, false
+}
+
 // PoolByID returns the pool matching id, for endpoint detail joins.
 func (m *Manager) PoolByID(id string) (api.NodePool, bool) {
 	for _, p := range m.NodePools() {
@@ -218,6 +229,14 @@ func (m *Manager) AddNodePool(clusterID string, p api.NodePool) {
 	}
 }
 
+// RegisterCluster appends a cluster built by a provider adapter (e.g. CAPI
+// ProvisionCluster) so it appears alongside seeded/requested clusters.
+func (m *Manager) RegisterCluster(c api.Cluster) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.clusters = append(m.clusters, c)
+}
+
 // CreateCluster registers a new cluster from a create request.
 func (m *Manager) CreateCluster(req api.CreateClusterRequest) api.Cluster {
 	m.mu.Lock()
@@ -241,13 +260,34 @@ func (m *Manager) CreateCluster(req api.CreateClusterRequest) api.Cluster {
 	return c
 }
 
-// MutateMetrics simulates live DCGM telemetry on Ready GPU nodes until real
-// scrapes are wired in.
+// SetGPU replaces a node's GPUStatus (the real DCGM scrape path) and
+// derives its conditions: Xid errors map to Degraded, none clears to Ready.
+func (m *Manager) SetGPU(id string, gpu *api.GPUStatus) {
+	m.eachNode(func(n *api.Node) {
+		if n.ID != id {
+			return
+		}
+		n.GPU = gpu
+		if gpu == nil {
+			return
+		}
+		if len(gpu.XidErrors) > 0 {
+			n.Conditions = []api.Condition{{Type: "Degraded", Status: "True",
+				Reason: "XidError", LastTransitionTime: time.Now()}}
+		} else if n.Status() != "Draining" {
+			n.Conditions = []api.Condition{{Type: "Ready", Status: "True", LastTransitionTime: time.Now()}}
+		}
+	})
+}
+
+// MutateMetrics simulates live DCGM telemetry on Ready GPU nodes that have
+// no IP — the dev fixture for mock-provisioned nodes. Real nodes with an IP
+// get their metrics from the DCGM scraper instead.
 func (m *Manager) MutateMetrics() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.eachNode(func(n *api.Node) {
-		if n.GPU == nil || n.Status() != "Ready" {
+		if n.GPU == nil || n.Status() != "Ready" || n.IP != "" {
 			return
 		}
 		delta := (rand.Float64() * 4) - 2

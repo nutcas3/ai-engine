@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"ai-engine/internal/api"
 )
@@ -29,6 +30,18 @@ type Provider interface {
 	ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpec) (*ProvisionResult, error)
 	// DrainNode cordons and drains a node, triggering replacement.
 	DrainNode(ctx context.Context, nodeID string) error
+	// MissingConfig lists env vars/config the adapter still needs — the
+	// actionable detail behind Ready()=false (e.g. credentials).
+	MissingConfig() []string
+}
+
+// ClusterProvisioner is the optional extension for providers that can create
+// the management-cluster objects for a whole Cluster (Cluster +
+// <Kind>Cluster + KubeadmControlPlane + CP MachineTemplate), not just worker
+// pools. CAPI implements it; the Mock returns an in-memory cluster so the
+// create flow works end-to-end in dev.
+type ClusterProvisioner interface {
+	ProvisionCluster(ctx context.Context, req api.CreateClusterRequest) (*api.Cluster, error)
 }
 
 // ErrNotConfigured marks adapters that exist as placeholders but have no
@@ -61,10 +74,26 @@ func List() []Provider {
 }
 
 func init() {
-	Register(&CAPI{key: "aws", display: "AWS — CAPA (EKS/EC2)"})
-	Register(&CAPI{key: "gcp", display: "GCP — CAPG (GKE/GCE)"})
-	Register(&CAPI{key: "azure", display: "Azure — CAPZ (AKS/VMs)"})
-	Register(&CAPI{key: "coreweave", display: "CoreWeave / Lambda (custom CAPI)"})
-	Register(&CAPI{key: "metal3", display: "Bare Metal — Metal3 (CAPM3)"})
-	Register(&CAPI{key: "nico", display: "Bare Metal — NICo (BlueField DPU sites)"})
+	// One shared management-cluster client for every CAPI adapter. Each
+	// adapter probes independently: core CAPI CRDs + its own infra cluster
+	// CRD must be served before it reports Ready().
+	dyn, ns, _ := capiClientFromEnv()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for _, p := range []struct{ key, display string }{
+		{"aws", "AWS — CAPA (EKS/EC2)"},
+		{"gcp", "GCP — CAPG (GKE/GCE)"},
+		{"azure", "Azure — CAPZ (AKS/VMs)"},
+		{"coreweave", "CoreWeave / Lambda (custom CAPI)"},
+		{"metal3", "Bare Metal — Metal3 (CAPM3)"},
+		{"tinkerbell", "Bare Metal — Tinkerbell (CAPT)"},
+		{"vsphere", "Self-hosted — vSphere (CAPV)"},
+		{"openstack", "Self-hosted — OpenStack (CAPO)"},
+		{"proxmox", "Self-hosted — Proxmox (CAPMOX)"},
+		{"nico", "Bare Metal — NICo (BlueField DPU sites)"},
+	} {
+		a := NewCAPI(p.key, p.display, dyn, ns, false)
+		a.ready = a.probeProvider(ctx)
+		Register(a)
+	}
 }

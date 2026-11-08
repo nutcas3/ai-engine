@@ -35,11 +35,3 @@ func Classify(xid int) XidAction {
 	return XidIgnore
 }
 
-// Scraper polls each node's DCGM exporter (/metrics) for GPU health signals:
-// Xid counts, ECC errors, row remapping, temperature. Milestone 3 implements
-// the Prometheus scrape; the control plane then drives
-// taint → cordon → drain → CAPI replacement.
-type Scraper struct {
-	// Endpoint template per node, e.g. http://%s:9400/metrics
-	EndpointFmt string
-}
