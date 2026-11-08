@@ -15,6 +15,7 @@ import (
 	"ai-engine/cmd/web"
 	"ai-engine/internal/api"
 	"ai-engine/internal/providers"
+	"ai-engine/internal/telemetry"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -410,10 +411,11 @@ func (s *Server) TelemetryStreamHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// runTelemetry mutates fleet metrics on a tick and broadcasts each updated
-// GPU node as an OOB card fragment. Milestone 3 replaces MutateMetrics with
-// real DCGM scrapes.
+// runTelemetry scrapes each node's DCGM exporter on a tick (nodes with an
+// IP), falls back to the synthetic mutation only for IP-less dev nodes, and
+// broadcasts each updated GPU card as an OOB fragment.
 func (s *Server) runTelemetry(ctx context.Context) {
+	scraper := telemetry.NewScraper()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -422,7 +424,14 @@ func (s *Server) runTelemetry(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.fleet.MutateMetrics()
+			for _, node := range s.fleet.GPUNodes() {
+				if node.IP != "" {
+					if gpu, err := scraper.ScrapeNode(ctx, node); err == nil {
+						s.fleet.SetGPU(node.ID, gpu)
+					}
+				}
+			}
+			s.fleet.MutateMetrics() // dev fixture: only mutates nodes without IPs
 			for _, node := range s.fleet.GPUNodes() {
 				var buf bytes.Buffer
 				if err := web.GPUCardOOB(node).Render(ctx, &buf); err != nil {
