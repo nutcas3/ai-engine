@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: AI Engine Control Plane API
+  version: "0.1.0"
+  description: NVKE-shaped REST surface. Mutating endpoints require a Bearer JWT when OIDC_ISSUER is set.
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        "200": {description: OK}
+  /api/clusters:
+    get:
+      summary: List clusters
+      responses:
+        "200":
+          description: Clusters
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ClusterList"}
+    post:
+      summary: Create cluster (day-0 CAPI + GitOps handoff)
+      responses:
+        "201": {description: Created}
+        "401": {description: Unauthorized}
+  /api/nodePools:
+    get:
+      summary: List node pools
+      responses:
+        "200": {description: NodePools}
+    post:
+      summary: Provision node pool
+      responses:
+        "201": {description: Created}
+        "202": {description: Queued via outbox}
+  /api/nodes:
+    get:
+      summary: List nodes
+      responses:
+        "200": {description: Nodes}
+  /api/nodes/{id}/drain:
+    post:
+      summary: Drain node — deletes backing Machine; CAPI replaces
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Node draining}
+        "404": {description: Not found}
+  /api/releases:
+    get:
+      summary: List component releases
+      responses:
+        "200": {description: Releases}
+  /api/inference:
+    post:
+      summary: Register an inference endpoint
+      responses:
+        "201": {description: Created}
+  /api/telemetry/stream:
+    get:
+      summary: SSE gpu-metrics stream (OOB card fragments)
+      responses:
+        "200": {description: text/event-stream}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  schemas:
+    ClusterList:
+      type: object
+      properties:
+        clusters:
+          type: array
+          items: {$ref: "#/components/schemas/Cluster"}
+    Cluster:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        tier: {type: string, enum: [nano, minimal, optimal, max]}
+        controlPlaneKubernetesVersion: {type: string}
+        provider: {$ref: "#/components/schemas/InfraProvider"}
+        conditions:
+          type: array
+          items: {$ref: "#/components/schemas/Condition"}
+    InfraProvider:
+      type: object
+      properties:
+        kind: {type: string}
+        config: {type: object, additionalProperties: {type: string}}
+    Condition:
+      type: object
+      properties:
+        type: {type: string}
+        status: {type: string}
+        reason: {type: string}
+        lastTransitionTime: {type: string, format: date-time}
+security:
+  - bearerAuth: []
