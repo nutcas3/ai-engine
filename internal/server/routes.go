@@ -80,12 +80,6 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func writeErrLog(op string, err error) {
-	if err != nil {
-		log.Printf("%s: %v", op, err)
-	}
-}
-
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
