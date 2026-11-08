@@ -14,6 +14,7 @@ import (
 	"ai-engine/cmd/web"
 	"ai-engine/internal/fleet"
 	"ai-engine/internal/providers"
+	"ai-engine/internal/remediation"
 	"ai-engine/internal/store"
 	"ai-engine/internal/telemetry"
 	"ai-engine/internal/worker"
@@ -52,6 +53,7 @@ func NewServer(ctx context.Context) *http.Server {
 	providers.Register(providers.NewMock(s.fleet))
 
 	go s.runTelemetry(ctx)
+	go remediation.New(s.fleet).Run(ctx)
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),
