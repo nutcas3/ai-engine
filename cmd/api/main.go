@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"ai-engine/internal/server"
+	"github.com/nutcas3/ai-engine/internal/server"
 )
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"ai-engine/internal/api"
-	"ai-engine/internal/fleet"
+	"github.com/nutcas3/ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/fleet"
 )
 
 // Mock simulates the CAPI lifecycle locally: provisioning immediately returns

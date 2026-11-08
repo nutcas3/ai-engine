@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/api"
 )
 
 // Manager holds the cluster hierarchy in memory.

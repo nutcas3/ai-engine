@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/api"
 )
 
 // ProvisionResult is what an adapter returns after creating a node pool: the

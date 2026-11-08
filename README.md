@@ -93,3 +93,18 @@ No PAT or extra release secret is needed. The workflows use the repository's
 Actions to create pull requests so Release Please can open its version PR.
 To make the GHCR package public, set its visibility to Public once under the
 repository owner's Packages settings; subsequent images publish automatically.
+
+## Install & run
+
+```sh
+# install the tool
+go install github.com/nutcas3/ai-engine/cmd/api@latest
+# or download a release binary / docker image ghcr.io/nutcas3/ai-engine
+
+# run the control plane + dashboard (default :8090)
+ai-engine
+# then open http://localhost:8090
+# durable mode: DATABASE_URL=postgres://... ; auth: OIDC_ISSUER + OIDC_AUDIENCE
+```
+
+

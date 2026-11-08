@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"ai-engine/internal/api"
-	"ai-engine/internal/gitops"
+	"github.com/nutcas3/ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/gitops"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

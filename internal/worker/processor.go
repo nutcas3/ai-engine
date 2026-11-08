@@ -9,10 +9,10 @@ import (
 	"log"
 	"time"
 
-	"ai-engine/internal/api"
-	"ai-engine/internal/fleet"
-	"ai-engine/internal/providers"
-	"ai-engine/internal/store"
+	"github.com/nutcas3/ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/fleet"
+	"github.com/nutcas3/ai-engine/internal/providers"
+	"github.com/nutcas3/ai-engine/internal/store"
 )
 
 // Processor drains workflow_outbox rows onto provider adapters.

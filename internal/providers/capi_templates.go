@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/api"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )

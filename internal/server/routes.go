@@ -12,11 +12,11 @@ import (
 
 	"github.com/a-h/templ"
 
-	"ai-engine/cmd/web"
-	"ai-engine/internal/api"
-	"ai-engine/internal/auth"
-	"ai-engine/internal/providers"
-	"ai-engine/internal/telemetry"
+	"github.com/nutcas3/ai-engine/cmd/web"
+	"github.com/nutcas3/ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/auth"
+	"github.com/nutcas3/ai-engine/internal/providers"
+	"github.com/nutcas3/ai-engine/internal/telemetry"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {

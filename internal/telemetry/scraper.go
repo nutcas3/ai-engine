@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/api"
 )
 
 // Scraper polls each node's DCGM exporter (/metrics on :9400) for GPU health

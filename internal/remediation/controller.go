@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"ai-engine/internal/fleet"
-	"ai-engine/internal/providers"
-	"ai-engine/internal/telemetry"
+	"github.com/nutcas3/ai-engine/internal/fleet"
+	"github.com/nutcas3/ai-engine/internal/providers"
+	"github.com/nutcas3/ai-engine/internal/telemetry"
 )
 
 // rank orders actions so the worst Xid wins.

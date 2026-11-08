@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/api"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

@@ -11,14 +11,14 @@ import (
 
 	_ "github.com/joho/godotenv/autoload"
 
-	"ai-engine/cmd/web"
-	"ai-engine/internal/auth"
-	"ai-engine/internal/fleet"
-	"ai-engine/internal/providers"
-	"ai-engine/internal/remediation"
-	"ai-engine/internal/store"
-	"ai-engine/internal/telemetry"
-	"ai-engine/internal/worker"
+	"github.com/nutcas3/ai-engine/cmd/web"
+	"github.com/nutcas3/ai-engine/internal/auth"
+	"github.com/nutcas3/ai-engine/internal/fleet"
+	"github.com/nutcas3/ai-engine/internal/providers"
+	"github.com/nutcas3/ai-engine/internal/remediation"
+	"github.com/nutcas3/ai-engine/internal/store"
+	"github.com/nutcas3/ai-engine/internal/telemetry"
+	"github.com/nutcas3/ai-engine/internal/worker"
 )
 
 type Server struct {

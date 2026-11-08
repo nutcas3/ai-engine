@@ -1,4 +1,4 @@
-module ai-engine
+module github.com/nutcas3/ai-engine
 
 go 1.27.3
 
