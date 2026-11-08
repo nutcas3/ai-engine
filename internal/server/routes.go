@@ -447,6 +447,7 @@ func (s *Server) TelemetryStreamHandler(w http.ResponseWriter, r *http.Request) 
 func (s *Server) runTelemetry(ctx context.Context) {
 	scraper := telemetry.NewScraper()
 	lastSeen := map[string]string{}
+	bufPool := sync.Pool{New: func() any { return new(bytes.Buffer) }}
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -479,12 +480,15 @@ func (s *Server) runTelemetry(ctx context.Context) {
 					continue
 				}
 				lastSeen[node.ID] = fp
-				var buf bytes.Buffer
-				if err := web.GPUCardOOB(node).Render(ctx, &buf); err != nil {
+				buf := bufPool.Get().(*bytes.Buffer)
+				buf.Reset()
+				if err := web.GPUCardOOB(node).Render(ctx, buf); err != nil {
+					bufPool.Put(buf)
 					log.Printf("render gpu card: %v", err)
 					continue
 				}
 				s.broadcaster.Publish(buf.String())
+				bufPool.Put(buf)
 			}
 		}
 	}

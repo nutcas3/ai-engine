@@ -147,7 +147,7 @@ func (m *Manager) Releases() []api.Release {
 func (m *Manager) NodePools() []api.NodePool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	var out []api.NodePool
+	out := make([]api.NodePool, 0, 16)
 	for _, c := range m.clusters {
 		out = append(out, c.NodePools...)
 	}
@@ -172,7 +172,7 @@ func (m *Manager) AllNodes() []api.Node {
 // GPUNodes returns only nodes carrying accelerator telemetry — the set the
 // dashboard renders.
 func (m *Manager) GPUNodes() []api.Node {
-	var out []api.Node
+	out := make([]api.Node, 0, 32)
 	for _, n := range m.AllNodes() {
 		if n.GPU != nil {
 			out = append(out, n)

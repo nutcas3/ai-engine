@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	_ "net/http/pprof"
+	"os"
 	"fmt"
 	"log"
 	"net/http"
@@ -43,6 +45,11 @@ func main() {
 	defer cancel()
 
 	server := server.NewServer(ctx)
+
+	// pprof listener for profiling (PPROF_ADDR=":6060"); off by default.
+	if addr := os.Getenv("PPROF_ADDR"); addr != "" {
+		go func() { log.Printf("pprof on %s", addr); http.ListenAndServe(addr, nil) }()
+	}
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)
