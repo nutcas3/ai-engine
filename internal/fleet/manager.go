@@ -263,6 +263,8 @@ func (m *Manager) CreateCluster(req api.CreateClusterRequest) api.Cluster {
 // SetGPU replaces a node's GPUStatus (the real DCGM scrape path) and
 // derives its conditions: Xid errors map to Degraded, none clears to Ready.
 func (m *Manager) SetGPU(id string, gpu *api.GPUStatus) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.eachNode(func(n *api.Node) {
 		if n.ID != id {
 			return

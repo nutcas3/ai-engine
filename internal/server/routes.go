@@ -2,12 +2,14 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/a-h/templ"
@@ -434,6 +436,7 @@ func (s *Server) TelemetryStreamHandler(w http.ResponseWriter, r *http.Request) 
 // broadcasts each updated GPU card as an OOB fragment.
 func (s *Server) runTelemetry(ctx context.Context) {
 	scraper := telemetry.NewScraper()
+	lastSeen := map[string]string{}
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -442,15 +445,30 @@ func (s *Server) runTelemetry(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// Scrape nodes concurrently — each exporter has its own timeout.
+			var wg sync.WaitGroup
 			for _, node := range s.fleet.GPUNodes() {
-				if node.IP != "" {
-					if gpu, err := scraper.ScrapeNode(ctx, node); err == nil {
-						s.fleet.SetGPU(node.ID, gpu)
-					}
+				if node.IP == "" {
+					continue
 				}
+				wg.Add(1)
+				go func(n api.Node) {
+					defer wg.Done()
+					if gpu, err := scraper.ScrapeNode(ctx, n); err == nil {
+						s.fleet.SetGPU(n.ID, gpu)
+					}
+				}(node)
 			}
+			wg.Wait()
 			s.fleet.MutateMetrics() // dev fixture: only mutates nodes without IPs
+
+			// Delta broadcast: only re-render + publish cards that changed.
 			for _, node := range s.fleet.GPUNodes() {
+				fp := fingerprint(node)
+				if fp == lastSeen[node.ID] {
+					continue
+				}
+				lastSeen[node.ID] = fp
 				var buf bytes.Buffer
 				if err := web.GPUCardOOB(node).Render(ctx, &buf); err != nil {
 					log.Printf("render gpu card: %v", err)
@@ -460,4 +478,13 @@ func (s *Server) runTelemetry(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// fingerprint is a cheap change signature for delta broadcasts.
+func fingerprint(n api.Node) string {
+	if n.GPU == nil {
+		return n.Status()
+	}
+	return fmt.Sprintf("%s|%.3f|%d|%d|%v", n.Status(), n.GPU.VRAMUsedGB,
+		n.GPU.Utilization, n.GPU.TempC, n.GPU.XidErrors)
 }

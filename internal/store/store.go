@@ -170,3 +170,17 @@ func (s *Store) UpdateResource(ctx context.Context, kind, key string, resource a
 
 // Close releases the database pool.
 func (s *Store) Close() error { return s.db.Close() }
+
+// ListResources returns every stored payload for a kind (boot-time restore).
+func (s *Store) ListResources(ctx context.Context, kind string) ([][]byte, error) {
+	var rows []Resource
+	if err := s.db.NewSelect().Model(&rows).Column("payload").
+		Where("kind = ?", kind).Scan(ctx); err != nil {
+		return nil, err
+	}
+	out := make([][]byte, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, []byte(r.Payload))
+	}
+	return out, nil
+}

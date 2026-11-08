@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	"github.com/nutcas3/ai-engine/cmd/web"
+	"github.com/nutcas3/ai-engine/internal/api"
 	"github.com/nutcas3/ai-engine/internal/auth"
 	"github.com/nutcas3/ai-engine/internal/fleet"
 	"github.com/nutcas3/ai-engine/internal/providers"
@@ -44,6 +46,24 @@ func NewServer(ctx context.Context) *http.Server {
 			log.Printf("DATABASE_URL set but store unavailable (%v) — continuing in-memory", err)
 		} else {
 			s.store = st
+			restored := 0
+			for _, blob := range mustList(ctx, st, "cluster") {
+				var c api.Cluster
+				if json.Unmarshal(blob, &c) == nil {
+					s.fleet.RegisterCluster(c)
+					restored++
+				}
+			}
+			for _, blob := range mustList(ctx, st, "nodepool") {
+				var p api.NodePool
+				if json.Unmarshal(blob, &p) == nil {
+					s.fleet.AddNodePool(p.ClusterID, p)
+					restored++
+				}
+			}
+			if restored > 0 {
+				log.Printf("restored %d resources from store", restored)
+			}
 			go worker.New(st, s.fleet).Run(ctx)
 			log.Println("durable store + outbox processor enabled")
 		}
@@ -73,4 +93,15 @@ func (s *Server) handler() http.Handler {
 		return mw.Require(h)
 	}
 	return h
+}
+
+// mustList returns stored payloads for a kind, empty on error (restore is
+// best-effort — the in-memory path still works if a row is corrupt).
+func mustList(ctx context.Context, st *store.Store, kind string) [][]byte {
+	rows, err := st.ListResources(ctx, kind)
+	if err != nil {
+		log.Printf("restore %s: %v", kind, err)
+		return nil
+	}
+	return rows
 }
