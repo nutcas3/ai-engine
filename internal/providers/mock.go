@@ -23,9 +23,10 @@ func NewMock(f *fleet.Manager) *Mock {
 	return &Mock{key: "mock", display: "Mock (local dev)", fleet: f}
 }
 
-func (m *Mock) Key() string     { return m.key }
-func (m *Mock) Display() string { return m.display }
-func (m *Mock) Ready() bool     { return true }
+func (m *Mock) Key() string              { return m.key }
+func (m *Mock) Display() string          { return m.display }
+func (m *Mock) Ready() bool              { return true }
+func (m *Mock) MissingConfig() []string  { return nil }
 
 func (m *Mock) ProvisionNodePool(_ context.Context, spec api.NodePoolCreateSpec) (*ProvisionResult, error) {
 	if spec.DesiredNodeCount < 1 {

@@ -30,6 +30,9 @@ type Provider interface {
 	ProvisionNodePool(ctx context.Context, spec api.NodePoolCreateSpec) (*ProvisionResult, error)
 	// DrainNode cordons and drains a node, triggering replacement.
 	DrainNode(ctx context.Context, nodeID string) error
+	// MissingConfig lists env vars/config the adapter still needs — the
+	// actionable detail behind Ready()=false (e.g. credentials).
+	MissingConfig() []string
 }
 
 // ClusterProvisioner is the optional extension for providers that can create

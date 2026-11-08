@@ -41,9 +41,63 @@ func NewCAPI(key, display string, dyn dynamic.Interface, ns string, ready bool) 
 	return &CAPI{key: key, display: display, dyn: dyn, ns: ns, ready: ready}
 }
 
+// requiredEnv maps each provider to alternative credential sets: the adapter
+// is configured when ANY complete set is present in the environment. These
+// mirror the env contract each CAPI controller expects (clusterctl vars /
+// cloud credentials). Bare-metal providers gate on inventory instead — no
+// cloud creds.
+var requiredEnv = map[string][][]string{
+	"aws":       {{"AWS_B64ENCODED_CREDENTIALS"}, {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"}},
+	"gcp":       {{"GCP_B64ENCODED_CREDENTIALS"}},
+	"azure":     {{"AZURE_SUBSCRIPTION_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"}},
+	"vsphere":   {{"VSPHERE_SERVER", "VSPHERE_USERNAME", "VSPHERE_PASSWORD"}},
+	"openstack": {{"OS_CLOUD"}, {"OS_APPLICATION_CREDENTIAL_ID"}},
+	"proxmox":   {{"PROXMOX_URL", "PROXMOX_TOKEN"}},
+	"tinkerbell": {{"TINKERBELL_IP"}},
+	"coreweave": {{"COREWEAVE_API_TOKEN"}},
+	// metal3, nico: inventory/BlueField-based, no cloud credential env
+}
+
 func (c *CAPI) Key() string     { return c.key }
 func (c *CAPI) Display() string { return c.display }
-func (c *CAPI) Ready() bool     { return c.dyn != nil && c.ready }
+
+// Ready requires kubeconfig+CRDs (probed at boot) AND provider credentials
+// present in the environment — checked live so exported vars take effect
+// without a restart.
+func (c *CAPI) Ready() bool {
+	return c.dyn != nil && c.ready && len(c.MissingConfig()) == 0
+}
+
+// MissingConfig reports the unmet credential set for this provider, picking
+// the alternative closest to satisfied so the hint is actionable.
+func (c *CAPI) MissingConfig() []string {
+	if c.dyn == nil {
+		return []string{"CAPI_KUBECONFIG"}
+	}
+	if !c.ready {
+		return []string{"CAPI CRDs on management cluster"}
+	}
+	sets, ok := requiredEnv[c.key]
+	if !ok || len(sets) == 0 {
+		return nil
+	}
+	var best []string
+	for _, set := range sets {
+		var missing []string
+		for _, v := range set {
+			if os.Getenv(v) == "" {
+				missing = append(missing, v)
+			}
+		}
+		if len(missing) == 0 {
+			return nil
+		}
+		if best == nil || len(missing) < len(best) {
+			best = missing
+		}
+	}
+	return best
+}
 
 // probeResource checks whether one GVR is served, trying both API versions
 // with a short timeout. Used for the CAPI core check and each provider's own
