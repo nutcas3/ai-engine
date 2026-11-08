@@ -2,6 +2,10 @@ version: 2
 
 project_name: ai-engine
 
+# Release Please tags with the component prefix (ai-engine-v1.0.0);
+# GoReleaser needs to know so it parses the semver correctly.
+tag_prefix: ai-engine-v
+
 builds:
   - id: ai-engine
     main: ./cmd/api
