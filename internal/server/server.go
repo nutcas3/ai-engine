@@ -12,6 +12,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	"ai-engine/cmd/web"
+	"ai-engine/internal/auth"
 	"ai-engine/internal/fleet"
 	"ai-engine/internal/providers"
 	"ai-engine/internal/remediation"
@@ -57,9 +58,19 @@ func NewServer(ctx context.Context) *http.Server {
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),
-		Handler:      s.RegisterRoutes(),
+		Handler:      s.handler(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
+}
+
+// handler wraps the routes with OIDC auth on mutating /api/* when
+// OIDC_ISSUER is configured; passthrough otherwise.
+func (s *Server) handler() http.Handler {
+	h := s.RegisterRoutes()
+	if mw := auth.New(os.Getenv("OIDC_ISSUER"), os.Getenv("OIDC_AUDIENCE")); mw != nil {
+		return mw.Require(h)
+	}
+	return h
 }
