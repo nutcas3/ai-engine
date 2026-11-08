@@ -19,6 +19,7 @@ var capiResources = []struct{ group, res string }{
 	{"cluster.x-k8s.io", "clusters"},
 	{"bootstrap.cluster.x-k8s.io", "kubeadmconfigtemplates"},
 	{"controlplane.cluster.x-k8s.io", "kubeadmcontrolplanes"},
+	{"addons.cluster.x-k8s.io", "helmchartproxies"},
 	{"infrastructure.cluster.x-k8s.io", "awsmachinetemplates"},
 	{"infrastructure.cluster.x-k8s.io", "gcpmachinetemplates"},
 	{"infrastructure.cluster.x-k8s.io", "azuremachinetemplates"},
@@ -118,6 +119,7 @@ func TestCAPIProvisionClusterAppliesDay0Objects(t *testing.T) {
 		{"infrastructure.cluster.x-k8s.io", "awsmachinetemplates", "gpu-fleet-cp-mt"},
 		{"controlplane.cluster.x-k8s.io", "kubeadmcontrolplanes", "gpu-fleet-kcp"},
 		{"cluster.x-k8s.io", "clusters", "gpu-fleet"},
+		{"addons.cluster.x-k8s.io", "helmchartproxies", "gpu-operator"},
 		{"cluster.x-k8s.io", "machinedeployments", "h100-pool"},
 	} {
 		var got *unstructured.Unstructured

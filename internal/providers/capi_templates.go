@@ -202,8 +202,45 @@ func clusterObj(name, ns, tier, infraClusterKind, kcpVer, infraVer string) *unst
 			"services": map[string]any{"cidrBlocks": []any{"10.96.0.0/12"}},
 		},
 	})
-	o.obj.SetLabels(map[string]string{"ai-engine.io/tier": tier})
+	o.obj.SetLabels(map[string]string{
+		"ai-engine.io/tier":      tier,
+		"ai-engine.io/gpu-layer": "enabled",
+	})
 	return o
+}
+
+// gpuOperatorProxy builds an addons.cluster.x-k8s.io HelmChartProxy that
+// installs the NVIDIA GPU Operator (driver, device plugin, DRA driver, DCGM
+// exporter) onto every workload cluster labeled ai-engine.io/gpu-layer —
+// CAPI's native day-1 addon mechanism, so operators ship with bootstrap.
+func gpuOperatorProxy(ns string) *unstructuredObj {
+	return newObj("HelmChartProxy", "gpu-operator", ns, map[string]interface{}{
+		"clusterSelector": map[string]interface{}{
+			"matchLabels": map[string]interface{}{"ai-engine.io/gpu-layer": "enabled"},
+		},
+		"namespace":   "gpu-operator",
+		"releaseName": "gpu-operator",
+		"chartName":   "gpu-operator",
+		"repoURL":     "https://helm.ngc.nvidia.com/nvidia",
+		"version":     "v26.7.2",
+		"values": `dcgm-exporter:
+  enabled: true
+driver:
+  enabled: true
+devicePlugin:
+  enabled: true
+draDriver:
+  enabled: true
+operator:
+  defaultRuntime: containerd`,
+		"options": map[string]interface{}{
+			"wait":                    true,
+			"waitForJobsToComplete":  true,
+			"maxHistory":             int64(3),
+			"disableClusterResourceValidation": true,
+			"skipTemplateValidation": true,
+		},
+	})
 }
 
 // infraTemplate builds the provider infra MachineTemplate object. Spec
