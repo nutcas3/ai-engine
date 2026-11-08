@@ -293,6 +293,12 @@ func (c *CAPI) ProvisionCluster(ctx context.Context, req api.CreateClusterReques
 	if _, err := c.applyUnstructured(ctx, "cluster.x-k8s.io", "clusters", cl); err != nil {
 		return nil, fmt.Errorf("apply cluster: %w", err)
 	}
+	// 5. Day-1 GPU layer: HelmChartProxy installs GPU Operator + DRA driver +
+	// DCGM exporter on every matching workload cluster automatically.
+	proxy := gpuOperatorProxy(ns)
+	if _, err := c.applyUnstructured(ctx, "addons.cluster.x-k8s.io", "helmchartproxies", proxy); err != nil {
+		return nil, fmt.Errorf("apply gpu-operator helmchartproxy: %w", err)
+	}
 
 	// 5. Optional initial worker pools — same flow as POST /api/nodePools.
 	poolNames := make([]string, 0, len(req.NodePools))
