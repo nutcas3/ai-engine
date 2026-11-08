@@ -249,13 +249,34 @@ func (m *Manager) CreateCluster(req api.CreateClusterRequest) api.Cluster {
 	return c
 }
 
-// MutateMetrics simulates live DCGM telemetry on Ready GPU nodes until real
-// scrapes are wired in.
+// SetGPU replaces a node's GPUStatus (the real DCGM scrape path) and
+// derives its conditions: Xid errors map to Degraded, none clears to Ready.
+func (m *Manager) SetGPU(id string, gpu *api.GPUStatus) {
+	m.eachNode(func(n *api.Node) {
+		if n.ID != id {
+			return
+		}
+		n.GPU = gpu
+		if gpu == nil {
+			return
+		}
+		if len(gpu.XidErrors) > 0 {
+			n.Conditions = []api.Condition{{Type: "Degraded", Status: "True",
+				Reason: "XidError", LastTransitionTime: time.Now()}}
+		} else if n.Status() != "Draining" {
+			n.Conditions = []api.Condition{{Type: "Ready", Status: "True", LastTransitionTime: time.Now()}}
+		}
+	})
+}
+
+// MutateMetrics simulates live DCGM telemetry on Ready GPU nodes that have
+// no IP — the dev fixture for mock-provisioned nodes. Real nodes with an IP
+// get their metrics from the DCGM scraper instead.
 func (m *Manager) MutateMetrics() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.eachNode(func(n *api.Node) {
-		if n.GPU == nil || n.Status() != "Ready" {
+		if n.GPU == nil || n.Status() != "Ready" || n.IP != "" {
 			return
 		}
 		delta := (rand.Float64() * 4) - 2
