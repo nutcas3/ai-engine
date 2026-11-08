@@ -15,6 +15,7 @@ import (
 	"github.com/nutcas3/ai-engine/cmd/web"
 	"github.com/nutcas3/ai-engine/internal/api"
 	"github.com/nutcas3/ai-engine/internal/auth"
+	"github.com/nutcas3/ai-engine/internal/errs"
 	"github.com/nutcas3/ai-engine/internal/fleet"
 	"github.com/nutcas3/ai-engine/internal/providers"
 	"github.com/nutcas3/ai-engine/internal/remediation"
@@ -85,14 +86,28 @@ func NewServer(ctx context.Context) *http.Server {
 	}
 }
 
-// handler wraps the routes with OIDC auth on mutating /api/* when
-// OIDC_ISSUER is configured; passthrough otherwise.
+// handler wraps the routes with panic recovery at the boundary and OIDC
+// auth on mutating /api/* when OIDC_ISSUER is configured.
 func (s *Server) handler() http.Handler {
 	h := s.RegisterRoutes()
 	if mw := auth.New(os.Getenv("OIDC_ISSUER"), os.Getenv("OIDC_AUDIENCE")); mw != nil {
-		return mw.Require(h)
+		h = mw.Require(h)
 	}
-	return h
+	return recoverHandler(h)
+}
+
+// recoverHandler converts a panicking handler into a 500 instead of crashing
+// the whole server — the boundary safety net, not an error mechanism.
+func recoverHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic serving %s %s: %v", r.Method, r.URL.Path, rec)
+				errs.Write(w, errs.E(r.URL.Path, errs.Internal, fmt.Errorf("%v", rec), "internal server error"))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 // mustList returns stored payloads for a kind, empty on error (restore is
