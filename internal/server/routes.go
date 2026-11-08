@@ -14,6 +14,7 @@ import (
 
 	"ai-engine/cmd/web"
 	"ai-engine/internal/api"
+	"ai-engine/internal/auth"
 	"ai-engine/internal/providers"
 	"ai-engine/internal/telemetry"
 )
@@ -362,6 +363,23 @@ func (s *Server) CreateInferenceHandler(w http.ResponseWriter, r *http.Request) 
 	e.Status = "Ready"
 	e.CreatedAt = time.Now()
 	s.fleet.AddEndpoint(e)
+
+	// Real serving path: apply LLMInferenceService + InferencePool +
+	// LocalQueue via the pool's provider adapter when configured.
+	if pool, ok := s.fleet.PoolByID(e.PoolID); ok {
+		kind := "mock"
+		if p, ok2 := s.fleet.ClusterByID(pool.ClusterID); ok2 {
+			kind = strings.ToLower(p.Provider.Kind)
+		}
+		if pr, err := providers.Get(kind); err == nil && pr.Ready() {
+			if ep, ok3 := pr.(*providers.CAPI); ok3 {
+				if err := ep.ProvisionEndpoint(r.Context(), e, auth.TenantFrom(r.Context())); err != nil {
+					log.Printf("provision endpoint %s: %v", e.ID, err)
+					e.Status = "ProvisioningFailed"
+				}
+			}
+		}
+	}
 
 	if isHTMX(r) {
 		templ.Handler(web.EndpointRow(e)).ServeHTTP(w, r)

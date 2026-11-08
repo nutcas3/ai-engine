@@ -74,3 +74,47 @@ func RenderClusterQueue(cluster, tenant string, gpus int64) *unstructured.Unstru
 		},
 	}}
 }
+
+// RenderLLMInferenceService builds a KServe LLMInferenceService for an
+// endpoint — the real object applied to the workload/management cluster.
+func RenderLLMInferenceService(e struct {
+	Name, Model, PoolID string
+	Replicas            int
+}) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "serving.kserve.io/v1beta1",
+		"kind":       "LLMInferenceService",
+		"metadata":   map[string]interface{}{"name": e.Name, "namespace": "serving"},
+		"spec": map[string]interface{}{
+			"replicas": int64(e.Replicas),
+			"model":    map[string]interface{}{"name": e.Model},
+			"pool":     map[string]interface{}{"nodePool": e.PoolID},
+		},
+	}}
+}
+
+// RenderLocalQueue builds the Kueue LocalQueue binding a namespace to a
+// ClusterQueue — the per-team tenancy object.
+func RenderLocalQueue(cluster, tenant, ns string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "kueue.x-k8s.io/v1beta1",
+		"kind":       "LocalQueue",
+		"metadata":   map[string]interface{}{"name": tenant + "-queue", "namespace": ns},
+		"spec": map[string]interface{}{
+			"clusterQueue": cluster + "-" + tenant + "-queue",
+		},
+	}}
+}
+
+// RenderInferencePool builds a GIE InferencePool for the serving extension.
+func RenderInferencePool(name, poolID string, ports int32) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "inference.networking.x-k8s.io/v1alpha1",
+		"kind":       "InferencePool",
+		"metadata":   map[string]interface{}{"name": name, "namespace": "serving"},
+		"spec": map[string]interface{}{
+			"selector":     map[string]interface{}{"nodePool": poolID},
+			"targetPortNumber": ports,
+		},
+	}}
+}

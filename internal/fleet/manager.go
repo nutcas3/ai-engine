@@ -113,6 +113,17 @@ func (m *Manager) AddEndpoint(e api.InferenceEndpoint) {
 	m.endpoints = append(m.endpoints, e)
 }
 
+
+// ClusterByID returns a copy of the named cluster.
+func (m *Manager) ClusterByID(id string) (api.Cluster, bool) {
+	for _, c := range m.Clusters() {
+		if c.ID == id {
+			return c, true
+		}
+	}
+	return api.Cluster{}, false
+}
+
 // PoolByID returns the pool matching id, for endpoint detail joins.
 func (m *Manager) PoolByID(id string) (api.NodePool, bool) {
 	for _, p := range m.NodePools() {
