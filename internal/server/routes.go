@@ -17,6 +17,7 @@ import (
 	"github.com/nutcas3/ai-engine/cmd/web"
 	"github.com/nutcas3/ai-engine/internal/api"
 	"github.com/nutcas3/ai-engine/internal/auth"
+	"github.com/nutcas3/ai-engine/internal/errs"
 	"github.com/nutcas3/ai-engine/internal/providers"
 	"github.com/nutcas3/ai-engine/internal/telemetry"
 )
@@ -79,6 +80,12 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func writeErrLog(op string, err error) {
+	if err != nil {
+		log.Printf("%s: %v", op, err)
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -109,11 +116,11 @@ func (s *Server) ListClustersHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) CreateClusterHandler(w http.ResponseWriter, r *http.Request) {
 	var req api.CreateClusterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid cluster request", http.StatusBadRequest)
+		errs.Write(w, errs.E("clusters.create", errs.Invalid, err, "invalid cluster request"))
 		return
 	}
 	if req.Name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
+		errs.Write(w, errs.E("validate", errs.Invalid, errs.ErrInvalid, "name is required"))
 		return
 	}
 	// Durable path: write the record + a workflow_outbox row in one
@@ -123,7 +130,7 @@ func (s *Server) CreateClusterHandler(w http.ResponseWriter, r *http.Request) {
 		c := s.fleet.CreateCluster(req)
 		job := map[string]any{"type": "cluster.provision", "cluster": req}
 		if err := s.store.Enqueue(r.Context(), "cluster", c.ID, c, job); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			errs.Write(w, errs.E("enqueue", errs.Internal, err))
 			return
 		}
 		writeJSON(w, http.StatusCreated, c)
@@ -134,7 +141,7 @@ func (s *Server) CreateClusterHandler(w http.ResponseWriter, r *http.Request) {
 		if cp, ok := p.(providers.ClusterProvisioner); ok {
 			cluster, err := cp.ProvisionCluster(r.Context(), req)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadGateway)
+				errs.Write(w, errs.E("provision", errs.Provider, err))
 				return
 			}
 			s.fleet.RegisterCluster(*cluster)
@@ -159,12 +166,12 @@ func (s *Server) CreateNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		if err := json.NewDecoder(r.Body).Decode(&spec); err != nil {
-			http.Error(w, "invalid node pool request", http.StatusBadRequest)
+			errs.Write(w, errs.E("nodepools.create", errs.Invalid, err, "invalid node pool request"))
 			return
 		}
 	} else {
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			errs.Write(w, errs.E("form", errs.Invalid, err, "bad form"))
 			return
 		}
 		count, _ := strconv.Atoi(r.FormValue("count"))
@@ -178,7 +185,7 @@ func (s *Server) CreateNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if spec.Name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
+		errs.Write(w, errs.E("validate", errs.Invalid, errs.ErrInvalid, "name is required"))
 		return
 	}
 	// Durable path: record + outbox row in one transaction; the processor
@@ -192,7 +199,7 @@ func (s *Server) CreateNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		job := map[string]any{"type": "nodepool.provision", "nodePool": spec}
 		if err := s.store.Enqueue(r.Context(), "nodepool", pool.ID, pool, job); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			errs.Write(w, errs.E("enqueue", errs.Internal, err))
 			return
 		}
 		writeJSON(w, http.StatusAccepted, pool)
@@ -200,12 +207,12 @@ func (s *Server) CreateNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := providers.Get(spec.Provider.Kind)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errs.Write(w, errs.E("create", errs.Invalid, err))
 		return
 	}
 	res, err := p.ProvisionNodePool(r.Context(), spec)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		errs.Write(w, errs.E("provision", errs.Provider, err))
 		return
 	}
 	res.Pool.ClusterID = "cluster-gpu-fleet"
@@ -239,7 +246,7 @@ func (s *Server) DrainNodeHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	node, ok := s.fleet.Drain(id)
 	if !ok {
-		http.Error(w, "node not found", http.StatusNotFound)
+		errs.Write(w, errs.E("nodes.drain", errs.NotFound, errs.ErrNotFound, "node not found"))
 		return
 	}
 	// Real path: ask the node's provider adapter to delete/drain the
@@ -339,12 +346,12 @@ func (s *Server) CreateInferenceHandler(w http.ResponseWriter, r *http.Request) 
 	var e api.InferenceEndpoint
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
-			http.Error(w, "invalid endpoint request", http.StatusBadRequest)
+			errs.Write(w, errs.E("inference.create", errs.Invalid, err, "invalid endpoint request"))
 			return
 		}
 	} else {
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			errs.Write(w, errs.E("form", errs.Invalid, err, "bad form"))
 			return
 		}
 		e = api.InferenceEndpoint{
@@ -355,7 +362,7 @@ func (s *Server) CreateInferenceHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 	if e.Name == "" || e.Model == "" {
-		http.Error(w, "name and model are required", http.StatusBadRequest)
+		errs.Write(w, errs.E("inference.create", errs.Invalid, errs.ErrInvalid, "name and model are required"))
 		return
 	}
 	if e.Engine == "" {
@@ -411,7 +418,7 @@ func (s *Server) TelemetryStreamHandler(w http.ResponseWriter, r *http.Request) 
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		errs.Write(w, errs.E("telemetry.stream", errs.Internal, errs.ErrInvalid, "streaming unsupported"))
 		return
 	}
 
@@ -498,7 +505,7 @@ func (s *Server) DeleteClusterHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	cl, ok := s.fleet.ClusterByID(id)
 	if !ok {
-		http.NotFound(w, r)
+		errs.Write(w, errs.E("lookup", errs.NotFound, errs.ErrNotFound))
 		return
 	}
 	if p, err := providers.Get(strings.ToLower(cl.Provider.Kind)); err == nil && p.Ready() {
@@ -526,7 +533,7 @@ func (s *Server) ScaleNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	pool, ok := s.fleet.PoolByID(id)
 	if !ok {
-		http.NotFound(w, r)
+		errs.Write(w, errs.E("lookup", errs.NotFound, errs.ErrNotFound))
 		return
 	}
 	if cl, ok := s.fleet.ClusterByID(pool.ClusterID); ok {
@@ -545,7 +552,7 @@ func (s *Server) ScaleNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 // DeleteEndpointHandler removes an inference endpoint.
 func (s *Server) DeleteEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	if !s.fleet.RemoveEndpoint(r.PathValue("id")) {
-		http.NotFound(w, r)
+		errs.Write(w, errs.E("lookup", errs.NotFound, errs.ErrNotFound))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

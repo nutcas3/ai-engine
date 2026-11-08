@@ -2,7 +2,7 @@ package providers
 
 import (
 	"context"
-	"errors"
+	"github.com/nutcas3/ai-engine/internal/errs"
 	"fmt"
 	"time"
 
@@ -46,7 +46,7 @@ type ClusterProvisioner interface {
 
 // ErrNotConfigured marks adapters that exist as placeholders but have no
 // credentials/controller wired up yet.
-var ErrNotConfigured = errors.New("provider adapter not configured")
+var ErrNotConfigured = errs.ErrNotConfigured
 
 var registry = map[string]Provider{}
 
