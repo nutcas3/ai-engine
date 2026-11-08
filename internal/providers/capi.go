@@ -437,3 +437,30 @@ func (c *CAPI) applyUnstructured(ctx context.Context, group, resource string, ob
 	}
 	return "", lastErr
 }
+
+// ProvisionEndpoint applies the serving objects for an inference endpoint to
+// the serving namespace on the management cluster: KServe LLMInferenceService
+// + GIE InferencePool + the tenant's Kueue LocalQueue.
+func (c *CAPI) ProvisionEndpoint(ctx context.Context, e api.InferenceEndpoint, tenant string) error {
+	if !c.Ready() {
+		return ErrNotConfigured
+	}
+	ns := "serving"
+	if tenant == "" {
+		tenant = "default"
+	}
+	objs := []struct{ group, res string; obj *unstructuredObj }{
+		{"serving.kserve.io", "llminferenceservices", &unstructuredObj{obj: gitops.RenderLLMInferenceService(struct {
+			Name, Model, PoolID string; Replicas int
+		}{e.Name, e.Model, e.PoolID, e.Replicas})}},
+		{"inference.networking.x-k8s.io", "inferencepools", &unstructuredObj{obj: gitops.RenderInferencePool(e.Name+"-pool", e.PoolID, 8000)}},
+		{"kueue.x-k8s.io", "localqueues", &unstructuredObj{obj: gitops.RenderLocalQueue(orDefault(e.PoolID, "default"), tenant, ns)}},
+	}
+	for _, o := range objs {
+		o.obj.obj.SetNamespace(ns)
+		if _, err := c.applyUnstructured(ctx, o.group, o.res, o.obj); err != nil {
+			return fmt.Errorf("apply %s/%s: %w", o.group, o.res, err)
+		}
+	}
+	return nil
+}
