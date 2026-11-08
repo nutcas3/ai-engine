@@ -3,7 +3,8 @@ package web
 import (
 	"fmt"
 
-	"ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/api"
+	"github.com/nutcas3/ai-engine/internal/telemetry"
 )
 
 // GPUCard renders a node card for the initial page load and htmx responses.
@@ -66,13 +67,20 @@ templ gpuCardInner(n api.Node) {
 			</div>
 			<div>
 				<span class="text-caption font-geist-mono text-mid-gray">TEMP</span>
-				<p class="text-heading-sm font-semibold tracking-tight text-ink mt-0.5">{ fmt.Sprintf("%d°C", n.GPU.TempC) }</p>
+				if n.GPU.TempC >= 75 {
+					<p class="text-heading-sm font-semibold tracking-tight text-ember mt-0.5">{ fmt.Sprintf("%d°C", n.GPU.TempC) }</p>
+				} else {
+					<p class="text-heading-sm font-semibold tracking-tight text-ink mt-0.5">{ fmt.Sprintf("%d°C", n.GPU.TempC) }</p>
+				}
 			</div>
 		</div>
 		if len(n.GPU.XidErrors) > 0 {
-			<div class="mt-3 text-caption font-geist-mono text-ember">
-				Xid { fmt.Sprintf("%v", n.GPU.XidErrors) }
-			</div>
+			for _, x := range n.GPU.XidErrors {
+				<div class="mt-3 text-caption font-geist-mono text-ember flex items-center gap-2">
+					<span>Xid { fmt.Sprintf("%d", x) }</span>
+					<span class="text-mid-gray">· { string(telemetry.Classify(x)) }</span>
+				</div>
+			}
 		}
 	</div>
 	<div class="mt-5 pt-4 border-t border-hairline">
@@ -81,8 +89,10 @@ templ gpuCardInner(n api.Node) {
 				hx-post={ fmt.Sprintf("/api/nodes/%s/drain", n.ID) }
 				hx-target={ fmt.Sprintf("#gpu-%s", n.ID) }
 				hx-swap="outerHTML"
-				class="w-full py-2 px-3 bg-ink hover:bg-ink-soft text-paper text-caption font-medium uppercase tracking-caption rounded-md transition-colors"
+				hx-disabled-elt="this"
+				class="w-full py-2 px-3 bg-ink hover:bg-ink-soft text-paper text-caption font-medium uppercase tracking-caption rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
 			>
+				<svg class="w-3 h-3 animate-spin hidden [.htmx-request_&]:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
 				Drain Node &amp; Replace
 			</button>
 		} else if n.Status() == "Draining" {
