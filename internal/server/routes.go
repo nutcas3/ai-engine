@@ -425,6 +425,10 @@ func (s *Server) TelemetryStreamHandler(w http.ResponseWriter, r *http.Request) 
 	ch := s.broadcaster.Subscribe()
 	defer s.broadcaster.Unsubscribe(ch)
 
+	// SSE is long-lived — clear the server's WriteTimeout for this response
+	// so the stream isn't killed at 30s.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+
 	for {
 		select {
 		case <-r.Context().Done():

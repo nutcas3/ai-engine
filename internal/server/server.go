@@ -78,11 +78,13 @@ func NewServer(ctx context.Context) *http.Server {
 	go remediation.New(s.fleet).Run(ctx)
 
 	return &http.Server{
-		Addr:         fmt.Sprintf(":%d", s.port),
-		Handler:      s.handler(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:              fmt.Sprintf(":%d", s.port),
+		Handler:           s.handler(),
+		IdleTimeout:       time.Minute,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 }
 
