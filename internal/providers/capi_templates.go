@@ -214,9 +214,9 @@ func clusterObj(name, ns, tier, infraClusterKind, kcpVer, infraVer string) *unst
 // exporter) onto every workload cluster labeled ai-engine.io/gpu-layer —
 // CAPI's native day-1 addon mechanism, so operators ship with bootstrap.
 func gpuOperatorProxy(ns string) *unstructuredObj {
-	return newObj("HelmChartProxy", "gpu-operator", ns, map[string]interface{}{
-		"clusterSelector": map[string]interface{}{
-			"matchLabels": map[string]interface{}{"ai-engine.io/gpu-layer": "enabled"},
+	return newObj("HelmChartProxy", "gpu-operator", ns, map[string]any{
+		"clusterSelector": map[string]any{
+			"matchLabels": map[string]any{"ai-engine.io/gpu-layer": "enabled"},
 		},
 		"namespace":   "gpu-operator",
 		"releaseName": "gpu-operator",
@@ -233,12 +233,12 @@ draDriver:
   enabled: true
 operator:
   defaultRuntime: containerd`,
-		"options": map[string]interface{}{
-			"wait":                    true,
-			"waitForJobsToComplete":  true,
-			"maxHistory":             int64(3),
+		"options": map[string]any{
+			"wait":                             true,
+			"waitForJobsToComplete":            true,
+			"maxHistory":                       int64(3),
 			"disableClusterResourceValidation": true,
-			"skipTemplateValidation": true,
+			"skipTemplateValidation":           true,
 		},
 	})
 }

@@ -18,32 +18,32 @@ func RenderRootApp(cluster, tier, repoURL string) *unstructured.Unstructured {
 	if repoURL == "" {
 		repoURL = DefaultRepoURL
 	}
-	return &unstructured.Unstructured{Object: map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "argoproj.io/v1alpha1",
 		"kind":       "Application",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      fmt.Sprintf("%s-%s-root", cluster, tier),
 			"namespace": "argocd",
-			"labels": map[string]interface{}{
+			"labels": map[string]any{
 				"ai-engine.io/cluster": cluster,
 				"ai-engine.io/tier":    tier,
 			},
-			"finalizers": []interface{}{"resources-finalizer.argocd.argoproj.io"},
+			"finalizers": []any{"resources-finalizer.argocd.argoproj.io"},
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"project": "default",
-			"source": map[string]interface{}{
+			"source": map[string]any{
 				"repoURL":        repoURL,
 				"targetRevision": "HEAD",
 				"path":           fmt.Sprintf("deploy/clusters/%s", tier),
 			},
-			"destination": map[string]interface{}{
+			"destination": map[string]any{
 				"server":    "https://kubernetes.default.svc",
 				"namespace": "argocd",
 			},
-			"syncPolicy": map[string]interface{}{
-				"automated":   map[string]interface{}{"prune": true, "selfHeal": true},
-				"syncOptions": []interface{}{"CreateNamespace=true", "ServerSideApply=true"},
+			"syncPolicy": map[string]any{
+				"automated":   map[string]any{"prune": true, "selfHeal": true},
+				"syncOptions": []any{"CreateNamespace=true", "ServerSideApply=true"},
 			},
 		},
 	}}
@@ -53,19 +53,19 @@ func RenderRootApp(cluster, tier, repoURL string) *unstructured.Unstructured {
 // quota — the tenancy mechanism for workloads on the new cluster.
 func RenderClusterQueue(cluster, tenant string, gpus int64) *unstructured.Unstructured {
 	name := fmt.Sprintf("%s-%s-queue", cluster, tenant)
-	return &unstructured.Unstructured{Object: map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "kueue.x-k8s.io/v1beta1",
 		"kind":       "ClusterQueue",
-		"metadata":   map[string]interface{}{"name": name},
-		"spec": map[string]interface{}{
-			"resourceGroups": []interface{}{
-				map[string]interface{}{
-					"coveredResources": []interface{}{"nvidia.com/gpu"},
-					"flavors": []interface{}{
-						map[string]interface{}{
+		"metadata":   map[string]any{"name": name},
+		"spec": map[string]any{
+			"resourceGroups": []any{
+				map[string]any{
+					"coveredResources": []any{"nvidia.com/gpu"},
+					"flavors": []any{
+						map[string]any{
 							"name": "default-flavor",
-							"resources": []interface{}{
-								map[string]interface{}{"name": "nvidia.com/gpu", "nominalQuota": gpus},
+							"resources": []any{
+								map[string]any{"name": "nvidia.com/gpu", "nominalQuota": gpus},
 							},
 						},
 					},
@@ -81,14 +81,14 @@ func RenderLLMInferenceService(e struct {
 	Name, Model, PoolID string
 	Replicas            int
 }) *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "serving.kserve.io/v1beta1",
 		"kind":       "LLMInferenceService",
-		"metadata":   map[string]interface{}{"name": e.Name, "namespace": "serving"},
-		"spec": map[string]interface{}{
+		"metadata":   map[string]any{"name": e.Name, "namespace": "serving"},
+		"spec": map[string]any{
 			"replicas": int64(e.Replicas),
-			"model":    map[string]interface{}{"name": e.Model},
-			"pool":     map[string]interface{}{"nodePool": e.PoolID},
+			"model":    map[string]any{"name": e.Model},
+			"pool":     map[string]any{"nodePool": e.PoolID},
 		},
 	}}
 }
@@ -96,11 +96,11 @@ func RenderLLMInferenceService(e struct {
 // RenderLocalQueue builds the Kueue LocalQueue binding a namespace to a
 // ClusterQueue — the per-team tenancy object.
 func RenderLocalQueue(cluster, tenant, ns string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "kueue.x-k8s.io/v1beta1",
 		"kind":       "LocalQueue",
-		"metadata":   map[string]interface{}{"name": tenant + "-queue", "namespace": ns},
-		"spec": map[string]interface{}{
+		"metadata":   map[string]any{"name": tenant + "-queue", "namespace": ns},
+		"spec": map[string]any{
 			"clusterQueue": cluster + "-" + tenant + "-queue",
 		},
 	}}
@@ -108,12 +108,12 @@ func RenderLocalQueue(cluster, tenant, ns string) *unstructured.Unstructured {
 
 // RenderInferencePool builds a GIE InferencePool for the serving extension.
 func RenderInferencePool(name, poolID string, ports int32) *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "inference.networking.x-k8s.io/v1alpha1",
 		"kind":       "InferencePool",
-		"metadata":   map[string]interface{}{"name": name, "namespace": "serving"},
-		"spec": map[string]interface{}{
-			"selector":     map[string]interface{}{"nodePool": poolID},
+		"metadata":   map[string]any{"name": name, "namespace": "serving"},
+		"spec": map[string]any{
+			"selector":         map[string]any{"nodePool": poolID},
 			"targetPortNumber": ports,
 		},
 	}}

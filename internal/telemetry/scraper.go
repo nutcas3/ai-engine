@@ -52,11 +52,11 @@ func (s *Scraper) ScrapeNode(ctx context.Context, node api.Node) (*api.GPUStatus
 // per-GPU DCGM metrics into a single node-level GPUStatus.
 func parseDCGM(r io.Reader, prev *api.GPUStatus) (*api.GPUStatus, error) {
 	var (
-		fbUsedMiB, fbTotalMiB          float64
-		utilMax, tempMax               int
-		xids                           []int
-		model                          string
-		seen                           bool
+		fbUsedMiB, fbTotalMiB float64
+		utilMax, tempMax      int
+		xids                  []int
+		model                 string
+		seen                  bool
 	)
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
@@ -129,7 +129,7 @@ func splitMetric(line string) (string, map[string]string, float64, bool) {
 	name, labels := head, map[string]string{}
 	if i := strings.IndexByte(head, '{'); i >= 0 && strings.HasSuffix(head, "}") {
 		name = head[:i]
-		for _, kv := range strings.Split(head[i+1:len(head)-1], ",") {
+		for kv := range strings.SplitSeq(head[i+1:len(head)-1], ",") {
 			k, v, found := strings.Cut(kv, "=")
 			if found {
 				labels[k] = strings.Trim(v, `"`)
