@@ -30,6 +30,8 @@ var capiResources = []struct{ group, res string }{
 	{"infrastructure.cluster.x-k8s.io", "azureclusters"},
 	{"infrastructure.cluster.x-k8s.io", "metal3clusters"},
 	{"infrastructure.cluster.x-k8s.io", "nicoclusters"},
+	{"argoproj.io", "applications"},
+	{"kueue.x-k8s.io", "clusterqueues"},
 }
 
 func fakeDyn(objs ...*unstructured.Unstructured) *dynamicfake.FakeDynamicClient {

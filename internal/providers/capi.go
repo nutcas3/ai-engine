@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ai-engine/internal/api"
+	"ai-engine/internal/gitops"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -298,6 +299,17 @@ func (c *CAPI) ProvisionCluster(ctx context.Context, req api.CreateClusterReques
 	proxy := gpuOperatorProxy(ns)
 	if _, err := c.applyUnstructured(ctx, "addons.cluster.x-k8s.io", "helmchartproxies", proxy); err != nil {
 		return nil, fmt.Errorf("apply gpu-operator helmchartproxy: %w", err)
+	}
+	// 6. Day-0 GitOps handoff: the tier's root Application in argocd syncs
+	// the ai-for-k8s layer manifests onto the workload cluster, and a Kueue
+	// ClusterQueue seeds the tenant's GPU quota.
+	app := gitops.RenderRootApp(req.Name, tier, cfg["gitopsRepo"])
+	if _, err := c.applyUnstructured(ctx, "argoproj.io", "applications", &unstructuredObj{obj: app}); err != nil {
+		return nil, fmt.Errorf("apply argocd root app: %w", err)
+	}
+	queue := gitops.RenderClusterQueue(req.Name, orDefault(cfg["tenant"], "default"), 4)
+	if _, err := c.applyUnstructured(ctx, "kueue.x-k8s.io", "clusterqueues", &unstructuredObj{obj: queue}); err != nil {
+		return nil, fmt.Errorf("apply kueue clusterqueue: %w", err)
 	}
 
 	// 5. Optional initial worker pools — same flow as POST /api/nodePools.
