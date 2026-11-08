@@ -61,6 +61,7 @@ func spec(name string) api.NodePoolCreateSpec {
 }
 
 func TestCAPIProvisionAppliesCAPIObjects(t *testing.T) {
+	t.Setenv("AWS_B64ENCODED_CREDENTIALS", "x")
 	p := NewCAPI("aws", "test", fakeDyn(), "default", true)
 	res, err := p.ProvisionNodePool(context.Background(), spec("h100-pool"))
 	if err != nil {
@@ -91,6 +92,7 @@ func TestCAPIProvisionAppliesCAPIObjects(t *testing.T) {
 }
 
 func TestCAPIProvisionClusterAppliesDay0Objects(t *testing.T) {
+	t.Setenv("AWS_B64ENCODED_CREDENTIALS", "x")
 	p := NewCAPI("aws", "test", fakeDyn(), "default", true)
 	cl, err := p.ProvisionCluster(context.Background(), api.CreateClusterRequest{
 		Name:                          "gpu-fleet",
@@ -143,6 +145,7 @@ func TestCAPIProvisionClusterAppliesDay0Objects(t *testing.T) {
 }
 
 func TestCAPIDrainDeletesMachine(t *testing.T) {
+	t.Setenv("AWS_B64ENCODED_CREDENTIALS", "x")
 	machine := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "cluster.x-k8s.io/v1beta1",
 		"kind":       "Machine",
