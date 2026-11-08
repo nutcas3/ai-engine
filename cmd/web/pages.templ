@@ -156,7 +156,8 @@ templ NodesPage(nodes []api.Node, brand Brand) {
 					</td>
 					<td class="px-4 py-2.5">@statusChip(n.Status())</td>
 					<td class="px-4 py-2.5 text-right">
-						if n.Status() == "Degraded" {
+						switch n.Status() {
+						case "Degraded":
 							<button hx-post={ fmt.Sprintf("/api/nodes/%s/drain", n.ID) } hx-swap="none" hx-on::after-request="location.reload()" class="text-caption font-geist-mono text-ember hover:underline">DRAIN</button>
 						}
 					</td>

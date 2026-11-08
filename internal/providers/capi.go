@@ -490,7 +490,7 @@ func (c *CAPI) ScaleNodePool(ctx context.Context, mdName, ns string, replicas in
 		return ErrNotConfigured
 	}
 	gvr := schema.GroupVersionResource{Group: "cluster.x-k8s.io", Resource: "machinedeployments"}
-	patch := []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicas))
+	patch := fmt.Appendf(nil, `{"spec":{"replicas":%d}}`, replicas)
 	p := func(v string) error {
 		gvr.Version = v
 		_, err := c.dyn.Resource(gvr).Namespace(ns).Patch(ctx, mdName,
