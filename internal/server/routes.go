@@ -14,7 +14,9 @@ import (
 
 	"ai-engine/cmd/web"
 	"ai-engine/internal/api"
+	"ai-engine/internal/auth"
 	"ai-engine/internal/providers"
+	"ai-engine/internal/telemetry"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -109,6 +111,32 @@ func (s *Server) CreateClusterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
+	// Durable path: write the record + a workflow_outbox row in one
+	// transaction; the processor drives provisioning asynchronously —
+	// this handler never calls the orchestrator directly.
+	if s.store != nil {
+		c := s.fleet.CreateCluster(req)
+		job := map[string]any{"type": "cluster.provision", "cluster": req}
+		if err := s.store.Enqueue(r.Context(), "cluster", c.ID, c, job); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusCreated, c)
+		return
+	}
+	// In-memory path (dev): provision synchronously through the adapter.
+	if p, err := providers.Get(req.Provider.Kind); err == nil && p.Ready() {
+		if cp, ok := p.(providers.ClusterProvisioner); ok {
+			cluster, err := cp.ProvisionCluster(r.Context(), req)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			s.fleet.RegisterCluster(*cluster)
+			writeJSON(w, http.StatusCreated, *cluster)
+			return
+		}
+	}
 	c := s.fleet.CreateCluster(req)
 	writeJSON(w, http.StatusCreated, c)
 }
@@ -146,6 +174,23 @@ func (s *Server) CreateNodePoolHandler(w http.ResponseWriter, r *http.Request) {
 
 	if spec.Name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	// Durable path: record + outbox row in one transaction; the processor
+	// provisions asynchronously and fleet picks it up when it lands.
+	if s.store != nil {
+		pool := api.NodePool{
+			ID: "pool-" + spec.Name, Name: spec.Name,
+			DesiredNodeCount: spec.DesiredNodeCount, Provider: spec.Provider,
+			Conditions: []api.Condition{{Type: "Provisioning", Status: "True",
+				Reason: "Queued", LastTransitionTime: time.Now()}},
+		}
+		job := map[string]any{"type": "nodepool.provision", "nodePool": spec}
+		if err := s.store.Enqueue(r.Context(), "nodepool", pool.ID, pool, job); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, pool)
 		return
 	}
 	p, err := providers.Get(spec.Provider.Kind)
@@ -191,6 +236,15 @@ func (s *Server) DrainNodeHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		http.Error(w, "node not found", http.StatusNotFound)
 		return
+	}
+	// Real path: ask the node's provider adapter to delete/drain the
+	// underlying Machine (CAPI handles cordon+drain+replacement). The mock
+	// adapter resolves to "mock"; unconfigured adapters fail soft — fleet
+	// state already reflects the drain.
+	if p, err := providers.Get(strings.ToLower(node.Provider)); err == nil && p.Ready() {
+		if err := p.DrainNode(r.Context(), id); err != nil {
+			log.Printf("provider drain for node %s: %v", id, err)
+		}
 	}
 	if isHTMX(r) {
 		templ.Handler(web.GPUCard(node)).ServeHTTP(w, r)
@@ -310,6 +364,23 @@ func (s *Server) CreateInferenceHandler(w http.ResponseWriter, r *http.Request) 
 	e.CreatedAt = time.Now()
 	s.fleet.AddEndpoint(e)
 
+	// Real serving path: apply LLMInferenceService + InferencePool +
+	// LocalQueue via the pool's provider adapter when configured.
+	if pool, ok := s.fleet.PoolByID(e.PoolID); ok {
+		kind := "mock"
+		if p, ok2 := s.fleet.ClusterByID(pool.ClusterID); ok2 {
+			kind = strings.ToLower(p.Provider.Kind)
+		}
+		if pr, err := providers.Get(kind); err == nil && pr.Ready() {
+			if ep, ok3 := pr.(*providers.CAPI); ok3 {
+				if err := ep.ProvisionEndpoint(r.Context(), e, auth.TenantFrom(r.Context())); err != nil {
+					log.Printf("provision endpoint %s: %v", e.ID, err)
+					e.Status = "ProvisioningFailed"
+				}
+			}
+		}
+	}
+
 	if isHTMX(r) {
 		templ.Handler(web.EndpointRow(e)).ServeHTTP(w, r)
 		return
@@ -358,10 +429,11 @@ func (s *Server) TelemetryStreamHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// runTelemetry mutates fleet metrics on a tick and broadcasts each updated
-// GPU node as an OOB card fragment. Milestone 3 replaces MutateMetrics with
-// real DCGM scrapes.
+// runTelemetry scrapes each node's DCGM exporter on a tick (nodes with an
+// IP), falls back to the synthetic mutation only for IP-less dev nodes, and
+// broadcasts each updated GPU card as an OOB fragment.
 func (s *Server) runTelemetry(ctx context.Context) {
+	scraper := telemetry.NewScraper()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -370,7 +442,14 @@ func (s *Server) runTelemetry(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.fleet.MutateMetrics()
+			for _, node := range s.fleet.GPUNodes() {
+				if node.IP != "" {
+					if gpu, err := scraper.ScrapeNode(ctx, node); err == nil {
+						s.fleet.SetGPU(node.ID, gpu)
+					}
+				}
+			}
+			s.fleet.MutateMetrics() // dev fixture: only mutates nodes without IPs
 			for _, node := range s.fleet.GPUNodes() {
 				var buf bytes.Buffer
 				if err := web.GPUCardOOB(node).Render(ctx, &buf); err != nil {

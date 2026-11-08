@@ -80,7 +80,7 @@ Not yet mirrored: `/nodeSets`, `/control-plane`, `/configProfiles`,
 | `internal/api` | NVKE-shaped domain types |
 | `internal/server` | HTTP routes, htmx handlers, SSE stream, telemetry tick |
 | `internal/fleet` | In-memory `Manager` of the cluster→pool→set→node hierarchy |
-| `internal/providers` | `Provider` interface + registry; `Mock` (local dev), `CAPI` stubs |
+| `internal/providers` | `Provider` interface + registry; `Mock` (local dev), `CAPI` adapter — dynamic client against the management cluster applying `KubeadmConfigTemplate` + `<Kind>MachineTemplate` + `MachineDeployment`; drain deletes the `Machine` so CAPI cordons/drains/replaces |
 | `internal/telemetry` | SSE `Broadcaster`; DCGM Xid→action classification table, scraper stub |
 | `deploy/` | GitOps layer manifests in sync-wave order (`clusterapi` day-0, `p0-platform`…`p6-notebooks`, `clusters/<tier>` profiles), mirroring `nutcas3/ai-for-k8s` |
 

@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"strings"
 
 	"ai-engine/internal/api"
 	"ai-engine/internal/providers"
@@ -185,6 +186,11 @@ templ ProvidersPage(providers []providers.Provider, brand Brand) {
 					<div>
 						<h3 class="text-body font-semibold text-ink">{ p.Display() }</h3>
 						<p class="text-caption font-geist-mono text-mid-gray mt-0.5">key: { p.Key() }</p>
+						if !p.Ready() && len(p.MissingConfig()) > 0 {
+							<p class="text-caption font-geist-mono text-ember mt-2">
+								missing: { strings.Join(p.MissingConfig(), ", ") }
+							</p>
+						}
 					</div>
 					if p.Ready() {
 						<span class="px-2.5 py-1 rounded-full text-caption font-geist-mono bg-surface-alt border border-hairline text-ink">READY</span>
