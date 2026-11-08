@@ -42,12 +42,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// NVKE-shaped REST surface. htmx calls carry HX-Request and get HTML
 	// fragments back; API clients get JSON.
 	mux.HandleFunc("GET /api/clusters", s.ListClustersHandler)
+	mux.HandleFunc("DELETE /api/clusters/{id}", s.DeleteClusterHandler)
 	mux.HandleFunc("POST /api/clusters", s.CreateClusterHandler)
 	mux.HandleFunc("GET /api/nodePools", s.ListNodePoolsHandler)
+	mux.HandleFunc("POST /api/nodePools/{id}/scale", s.ScaleNodePoolHandler)
 	mux.HandleFunc("POST /api/nodePools", s.CreateNodePoolHandler)
 	mux.HandleFunc("GET /api/nodes", s.ListNodesHandler)
 	mux.HandleFunc("POST /api/nodes/{id}/drain", s.DrainNodeHandler)
 	mux.HandleFunc("GET /api/releases", s.ListReleasesHandler)
+	mux.HandleFunc("DELETE /api/inference/{id}", s.DeleteEndpointHandler)
 	mux.HandleFunc("POST /api/inference", s.CreateInferenceHandler)
 
 	// Force revalidation so regenerated CSS/JS isn't served stale from
@@ -487,4 +490,63 @@ func fingerprint(n api.Node) string {
 	}
 	return fmt.Sprintf("%s|%.3f|%d|%d|%v", n.Status(), n.GPU.VRAMUsedGB,
 		n.GPU.Utilization, n.GPU.TempC, n.GPU.XidErrors)
+}
+
+// DeleteClusterHandler removes a cluster from the fleet and deletes its CAPI
+// Cluster (cascades) when a provider is configured.
+func (s *Server) DeleteClusterHandler(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	cl, ok := s.fleet.ClusterByID(id)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if p, err := providers.Get(strings.ToLower(cl.Provider.Kind)); err == nil && p.Ready() {
+		if cp, ok := p.(*providers.CAPI); ok {
+			if err := cp.DeleteCluster(r.Context(), cl.Name, "default"); err != nil {
+				log.Printf("delete cluster %s on provider: %v", id, err)
+			}
+		}
+	}
+	s.fleet.RemoveCluster(id)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ScaleNodePoolHandler updates a pool's desired count and patches the
+// MachineDeployment replicas when a provider is configured.
+func (s *Server) ScaleNodePoolHandler(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		DesiredNodeCount int `json:"desiredNodeCount"`
+	}
+	if err := r.ParseForm(); err == nil && r.FormValue("desiredNodeCount") != "" {
+		req.DesiredNodeCount, _ = strconv.Atoi(r.FormValue("desiredNodeCount"))
+	} else {
+		json.NewDecoder(r.Body).Decode(&req)
+	}
+	pool, ok := s.fleet.PoolByID(id)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if cl, ok := s.fleet.ClusterByID(pool.ClusterID); ok {
+		if p, err := providers.Get(strings.ToLower(cl.Provider.Kind)); err == nil && p.Ready() {
+			if cp, ok2 := p.(*providers.CAPI); ok2 {
+				if err := cp.ScaleNodePool(r.Context(), pool.Name, "default", int64(req.DesiredNodeCount)); err != nil {
+					log.Printf("scale pool %s: %v", id, err)
+				}
+			}
+		}
+	}
+	s.fleet.ScalePool(id, req.DesiredNodeCount)
+	writeJSON(w, http.StatusOK, map[string]any{"desiredNodeCount": req.DesiredNodeCount})
+}
+
+// DeleteEndpointHandler removes an inference endpoint.
+func (s *Server) DeleteEndpointHandler(w http.ResponseWriter, r *http.Request) {
+	if !s.fleet.RemoveEndpoint(r.PathValue("id")) {
+		http.NotFound(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

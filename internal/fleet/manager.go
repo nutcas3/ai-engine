@@ -328,3 +328,44 @@ func (m *Manager) NodeIDsInPool(poolName string) []string {
 	}
 	return ids
 }
+
+// RemoveCluster deletes a cluster and all its pools/sets/nodes.
+func (m *Manager) RemoveCluster(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, c := range m.clusters {
+		if c.ID == id {
+			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// ScalePool updates the desired node count for a pool.
+func (m *Manager) ScalePool(id string, count int) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for ci := range m.clusters {
+		for pi := range m.clusters[ci].NodePools {
+			if m.clusters[ci].NodePools[pi].ID == id {
+				m.clusters[ci].NodePools[pi].DesiredNodeCount = count
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// RemoveEndpoint deletes an inference endpoint.
+func (m *Manager) RemoveEndpoint(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, e := range m.endpoints {
+		if e.ID == id {
+			m.endpoints = append(m.endpoints[:i], m.endpoints[i+1:]...)
+			return true
+		}
+	}
+	return false
+}

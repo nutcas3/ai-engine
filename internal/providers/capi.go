@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -461,6 +462,43 @@ func (c *CAPI) ProvisionEndpoint(ctx context.Context, e api.InferenceEndpoint, t
 		if _, err := c.applyUnstructured(ctx, o.group, o.res, o.obj); err != nil {
 			return fmt.Errorf("apply %s/%s: %w", o.group, o.res, err)
 		}
+	}
+	return nil
+}
+
+// DeleteCluster deletes the CAPI Cluster object; owner refs cascade to the
+// KubeadmControlPlane, MachineDeployments, and infra resources, so the
+// provider tears the workload cluster down.
+func (c *CAPI) DeleteCluster(ctx context.Context, name, ns string) error {
+	if !c.Ready() {
+		return ErrNotConfigured
+	}
+	gvr := schema.GroupVersionResource{Group: "cluster.x-k8s.io", Resource: "clusters"}
+	del := func(v string) error {
+		gvr.Version = v
+		return c.dyn.Resource(gvr).Namespace(ns).Delete(ctx, name, metav1.DeleteOptions{})
+	}
+	if err := del("v1beta2"); err != nil {
+		return del("v1beta1")
+	}
+	return nil
+}
+
+// ScaleNodePool patches the MachineDeployment replicas for a pool.
+func (c *CAPI) ScaleNodePool(ctx context.Context, mdName, ns string, replicas int64) error {
+	if !c.Ready() {
+		return ErrNotConfigured
+	}
+	gvr := schema.GroupVersionResource{Group: "cluster.x-k8s.io", Resource: "machinedeployments"}
+	patch := []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicas))
+	p := func(v string) error {
+		gvr.Version = v
+		_, err := c.dyn.Resource(gvr).Namespace(ns).Patch(ctx, mdName,
+			types.MergePatchType, patch, metav1.PatchOptions{})
+		return err
+	}
+	if err := p("v1beta2"); err != nil {
+		return p("v1beta1")
 	}
 	return nil
 }

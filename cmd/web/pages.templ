@@ -65,6 +65,11 @@ templ ClustersPage(clusters []api.Cluster, brand Brand) {
 					<div class="flex items-center gap-2">
 						<span class="px-2.5 py-1 rounded-md text-caption font-geist-mono bg-ink text-paper">{ c.Tier }</span>
 						@statusChip(condsText(c.Conditions))
+						<button hx-delete={ fmt.Sprintf("/api/clusters/%s", c.ID) }
+							hx-target="closest div.bg-paper" hx-swap="outerHTML"
+							hx-confirm="Delete cluster and cascade CAPI teardown?"
+							class="px-2.5 py-1 rounded-md text-caption font-geist-mono text-ember border border-ember/30 hover:bg-ember/10">
+							DELETE</button>
 					</div>
 				</div>
 				<div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-caption font-geist-mono text-mid-gray">
@@ -92,7 +97,17 @@ templ NodePoolsPage(pools []api.NodePool, brand Brand) {
 					<td class="px-4 py-2.5 font-medium text-ink">{ p.Name }<div class="text-caption font-geist-mono text-mid-gray">{ p.ID }</div></td>
 					<td class="px-4 py-2.5 font-geist-mono text-caption">{ p.Provider.Kind }</td>
 					<td class="px-4 py-2.5 font-geist-mono text-caption">{ p.KubernetesVersion }</td>
-					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", p.DesiredNodeCount) }</td>
+					<td class="px-4 py-2.5 font-geist-mono text-caption">
+						<button hx-post={ fmt.Sprintf("/api/nodePools/%s/scale", p.ID) }
+							hx-vals={ fmt.Sprintf(`{"desiredNodeCount": %d}`, p.DesiredNodeCount-1) }
+							hx-swap="none" hx-on::after-request="location.reload()"
+							class="text-mid-gray hover:text-ink">−</button>
+						{ fmt.Sprintf("%d", p.DesiredNodeCount) }
+						<button hx-post={ fmt.Sprintf("/api/nodePools/%s/scale", p.ID) }
+							hx-vals={ fmt.Sprintf(`{"desiredNodeCount": %d}`, p.DesiredNodeCount+1) }
+							hx-swap="none" hx-on::after-request="location.reload()"
+							class="text-mid-gray hover:text-ink">+</button>
+					</td>
 					<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", len(p.NodeSets)) }</td>
 					<td class="px-4 py-2.5">@statusChip(condsText(p.Conditions))</td>
 				</tr>
@@ -227,7 +242,7 @@ templ InferencePage(endpoints []api.InferenceEndpoint, pools []api.NodePool, bra
 				<button type="submit" class="bg-ink hover:bg-ink-soft text-paper text-body font-medium rounded-md transition-colors">Deploy</button>
 			</form>
 		</div>
-		@tableWrap([]string{"ENDPOINT", "MODEL", "ENGINE", "POOL", "REPLICAS", "STATUS"}) {
+		@tableWrap([]string{"ENDPOINT", "MODEL", "ENGINE", "POOL", "REPLICAS", "STATUS", ""}) {
 			<tbody id="endpoints-table" class="contents">
 				for _, e := range endpoints {
 					@EndpointRow(e)
@@ -245,6 +260,11 @@ templ EndpointRow(e api.InferenceEndpoint) {
 		<td class="px-4 py-2.5 font-geist-mono text-caption">{ e.PoolID }</td>
 		<td class="px-4 py-2.5 font-geist-mono text-caption">{ fmt.Sprintf("%d", e.Replicas) }</td>
 		<td class="px-4 py-2.5">@statusChip(e.Status)</td>
+		<td class="px-4 py-2.5 text-right">
+			<button hx-delete={ fmt.Sprintf("/api/inference/%s", e.ID) }
+				hx-target="closest tr" hx-swap="outerHTML"
+				class="text-caption font-geist-mono text-ember hover:underline">DEL</button>
+		</td>
 	</tr>
 }
 
