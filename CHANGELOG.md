@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.1.0](https://github.com/nutcas3/ai-engine/compare/ai-engine-v1.0.0...ai-engine-v1.1.0) (2026-11-08)
+
+
+### Features
+
+* cluster delete, pool scale, endpoint delete end-to-end ([cc38a1c](https://github.com/nutcas3/ai-engine/commit/cc38a1c0905cfb9a48f094a4f4811c2b10608f6b))
+* panic recovery middleware at the HTTP boundary ([c53d4be](https://github.com/nutcas3/ai-engine/commit/c53d4beda1a0f9308fd6c1db33a719fbd128ea32))
+* structured error layer (internal/errs) ([2796268](https://github.com/nutcas3/ai-engine/commit/2796268ee063ef7e0e0017e2737127d06af2e6db))
+
+
+### Bug Fixes
+
+* clear write deadline on SSE stream + slowloris hardening ([f0d6385](https://github.com/nutcas3/ai-engine/commit/f0d6385a4f05554e61af155f3081ad529b59c43a))
+* goreleaser tag_prefix for release-please component tags ([d5dbcb4](https://github.com/nutcas3/ai-engine/commit/d5dbcb49bcbbc6ff2756053295866ff916aadd97))
+* modernize go ([1f57043](https://github.com/nutcas3/ai-engine/commit/1f57043149a7132694b2b9c8704275adc72e3073))
+
+
+### Performance Improvements
+
+* pool render buffers, prealloc slices, pprof listener ([399826e](https://github.com/nutcas3/ai-engine/commit/399826edda3b02f462f142c8b0124898cd637ebd))
+
 ## 1.0.0 (2026-11-08)
 
 
