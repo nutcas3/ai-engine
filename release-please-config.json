@@ -8,5 +8,6 @@
       "release-type": "simple",
       "package-name": "ai-engine"
     }
-  }
+  },
+  "include-component-in-tag": false
 }
