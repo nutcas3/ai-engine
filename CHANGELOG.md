@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/nutcas3/ai-engine/compare/ai-engine-v1.1.0...ai-engine-v1.1.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* move tag_prefix under git section for goreleaser v2 ([377c9cf](https://github.com/nutcas3/ai-engine/commit/377c9cfe7fc1dc08a42c4af984cfa2fb18acd79e))
+
 ## [1.1.0](https://github.com/nutcas3/ai-engine/compare/ai-engine-v1.0.0...ai-engine-v1.1.0) (2026-11-08)
 
 
